@@ -22,7 +22,7 @@ contract SmartContractUser {
         orderhub.createOrder(request, permits, signature);
     }
 
-    function isValidSignature(bytes32, bytes memory) external view returns (bytes4 magicValue) {
+    function isValidSignature(bytes32, bytes memory) external pure returns (bytes4 magicValue) {
         return 0x1626ba7e;
     }
 }

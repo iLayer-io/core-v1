@@ -1,16 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.24;
 
-import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import {
-    IOAppOptionsType3, EnforcedOptionParam
-} from "@layerzerolabs/oapp-evm/contracts/oapp/libs/OAppOptionsType3.sol";
 import {OptionsBuilder} from "@layerzerolabs/oapp-evm/contracts/oapp/libs/OptionsBuilder.sol";
-import {IOFT, SendParam, OFTReceipt} from "@layerzerolabs/oft-evm/contracts/interfaces/IOFT.sol";
-import {MessagingFee, MessagingReceipt} from "@layerzerolabs/oft-evm/contracts/OFTCore.sol";
-import {OFTMsgCodec} from "@layerzerolabs/oft-evm/contracts/libs/OFTMsgCodec.sol";
-import {OFTComposeMsgCodec} from "@layerzerolabs/oft-evm/contracts/libs/OFTComposeMsgCodec.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {TestHelperOz5} from "@layerzerolabs/test-devtools-evm-foundry/contracts/TestHelperOz5.sol";
 import {BytesUtils} from "../src/libraries/BytesUtils.sol";
 import {Root} from "../src/Root.sol";
@@ -21,23 +12,22 @@ import {MockERC20} from "./mocks/MockERC20.sol";
 import {MockERC721} from "./mocks/MockERC721.sol";
 import {MockERC1155} from "./mocks/MockERC1155.sol";
 import {SmartContractUser} from "./mocks/SmartContractUser.sol";
+import {MessagingReceipt} from "@layerzerolabs/lz-evm-protocol-v2/contracts/interfaces/ILayerZeroEndpointV2.sol";
 
+/**
+ * @title BaseTest
+ * @notice Sets up the testing environment for order processing by deploying mock token contracts,
+ * the OrderHub, OrderSpoke contracts, and providing helper functions to build, sign, and fill orders.
+ */
 contract BaseTest is TestHelperOz5 {
     using OptionsBuilder for bytes;
 
-    struct BuildVars {
-        Root.Token[] inputs;
-        Root.Token[] outputs;
-        uint64 primaryFillerDeadline;
-        uint64 deadline;
-    }
+    uint32 public constant aEid = 1;
+    uint32 public constant bEid = 2;
 
-    // chain eids
-    uint32 public aEid = 1;
-    uint32 public bEid = 2;
     bytes[] public permits;
+    bytes[] public permits2;
 
-    // users
     uint256 public immutable user0_pk = uint256(keccak256("user0-private-key"));
     address public immutable user0 = vm.addr(user0_pk);
     uint256 public immutable user1_pk = uint256(keccak256("user1-private-key"));
@@ -45,7 +35,6 @@ contract BaseTest is TestHelperOz5 {
     uint256 public immutable user2_pk = uint256(keccak256("user2-private-key"));
     address public immutable user2 = vm.addr(user2_pk);
 
-    // contracts
     OrderHub public hub;
     OrderSpoke public spoke;
     MockERC20 public inputToken;
@@ -54,9 +43,17 @@ contract BaseTest is TestHelperOz5 {
     MockERC1155 public inputERC1155Token;
     SmartContractUser public contractUser;
 
+    /**
+     * @notice Initializes the test environment by deploying mock token contracts, funding test user accounts,
+     * and labeling addresses.
+     */
     constructor() {
         permits = new bytes[](1);
         permits[0] = "";
+
+        permits2 = new bytes[](2);
+        permits2[0] = "";
+        permits2[1] = "";
 
         inputToken = new MockERC20("input", "INPUT");
         inputERC721Token = new MockERC721("input", "INPUT");
@@ -79,6 +76,10 @@ contract BaseTest is TestHelperOz5 {
         vm.label(address(outputToken), "OUTPUT TOKEN");
     }
 
+    /**
+     * @notice Sets up endpoints and deploys the OrderHub and OrderSpoke contracts, wires the OApps,
+     * and sets the maximum order deadline.
+     */
     function setUp() public virtual override {
         super.setUp();
 
@@ -99,34 +100,53 @@ contract BaseTest is TestHelperOz5 {
         hub.setMaxOrderDeadline(1 days);
     }
 
+    /**
+     * @notice Retrieves messaging fee and options data required for order processing.
+     * @param order The order to be processed.
+     * @param orderNonce The order nonce.
+     * @param hubFundingWallet The hub funding wallet encoded as bytes32.
+     * @return fee The estimated fee for messaging.
+     * @return options The options payload for the LayerZero messaging.
+     */
     function _getLzData(Root.Order memory order, uint64 orderNonce, bytes32 hubFundingWallet)
         internal
         view
-        returns (uint256, bytes memory)
+        returns (uint256 fee, bytes memory options)
     {
-        bytes memory options = OptionsBuilder.newOptions().addExecutorLzReceiveOption(1e8, 0); // Hub -> Spoke
+        options = OptionsBuilder.newOptions().addExecutorLzReceiveOption(1e8, 0);
         bytes memory payload = abi.encode(order, orderNonce, hubFundingWallet);
-        uint256 fee = spoke.estimateFee(aEid, payload, options);
-
-        return (fee, options);
+        fee = spoke.estimateFee(aEid, payload, options);
     }
 
+    /**
+     * @notice Constructs an OrderRequest for order submission.
+     * @param order The order data.
+     * @param nonce The order nonce.
+     * @return An OrderRequest containing the order, a deadline, and the nonce.
+     */
     function buildOrderRequest(Root.Order memory order, uint64 nonce)
         public
         view
         returns (OrderHub.OrderRequest memory)
     {
-        OrderHub.OrderRequest memory request =
-            OrderHub.OrderRequest({order: order, deadline: uint64(block.timestamp + 1 days), nonce: nonce});
-        return request;
+        return OrderHub.OrderRequest({order: order, deadline: uint64(block.timestamp + 1 days), nonce: nonce});
     }
 
+    /**
+     * @notice Formats token data into input and output token arrays.
+     * @param fromToken The input token address.
+     * @param inputAmount The input token amount.
+     * @param toToken The output token address.
+     * @param outputAmount The output token amount.
+     * @return inputs An array of input tokens.
+     * @return outputs An array of output tokens.
+     */
     function _formatTokenStructs(address fromToken, uint256 inputAmount, address toToken, uint256 outputAmount)
         internal
         pure
-        returns (Root.Token[] memory, Root.Token[] memory)
+        returns (Root.Token[] memory inputs, Root.Token[] memory outputs)
     {
-        Root.Token[] memory inputs = new Root.Token[](1);
+        inputs = new Root.Token[](1);
         inputs[0] = Root.Token({
             tokenType: Root.Type.ERC20,
             tokenAddress: BytesUtils.addressToBytes32(fromToken),
@@ -134,17 +154,27 @@ contract BaseTest is TestHelperOz5 {
             amount: inputAmount
         });
 
-        Root.Token[] memory outputs = new Root.Token[](1);
+        outputs = new Root.Token[](1);
         outputs[0] = Root.Token({
             tokenType: Root.Type.ERC20,
             tokenAddress: BytesUtils.addressToBytes32(toToken),
             tokenId: 0,
             amount: outputAmount
         });
-
-        return (inputs, outputs);
     }
 
+    /**
+     * @notice Builds an order for an ERC20 token swap.
+     * @param user The order creator's address.
+     * @param filler The order filler’s address.
+     * @param fromToken The input token address.
+     * @param inputAmount The input token amount.
+     * @param toToken The output token address.
+     * @param outputAmount The output token amount.
+     * @param primaryFillerDeadlineOffset The primary filler deadline offset in seconds.
+     * @param deadlineOffset The overall order deadline offset in seconds.
+     * @return A Root.Order representing the constructed order.
+     */
     function buildOrder(
         address user,
         address filler,
@@ -155,73 +185,92 @@ contract BaseTest is TestHelperOz5 {
         uint256 primaryFillerDeadlineOffset,
         uint256 deadlineOffset
     ) public view returns (Root.Order memory) {
-        BuildVars memory v;
-
-        (v.inputs, v.outputs) = _formatTokenStructs(fromToken, inputAmount, toToken, outputAmount);
-
-        v.primaryFillerDeadline = uint64(block.timestamp + primaryFillerDeadlineOffset);
-        v.deadline = uint64(block.timestamp + deadlineOffset);
-
+        (Root.Token[] memory inputs, Root.Token[] memory outputs) =
+            _formatTokenStructs(fromToken, inputAmount, toToken, outputAmount);
         return Root.Order({
             user: BytesUtils.addressToBytes32(user),
             filler: BytesUtils.addressToBytes32(filler),
-            inputs: v.inputs,
-            outputs: v.outputs,
+            inputs: inputs,
+            outputs: outputs,
             sourceChainEid: aEid,
             destinationChainEid: bEid,
             sponsored: false,
-            primaryFillerDeadline: v.primaryFillerDeadline,
-            deadline: v.deadline,
+            primaryFillerDeadline: uint64(block.timestamp + primaryFillerDeadlineOffset),
+            deadline: uint64(block.timestamp + deadlineOffset),
             callRecipient: "",
             callData: ""
         });
     }
 
+    /**
+     * @notice Generates an EIP-712 signature for an order.
+     * @param order The order to sign.
+     * @param user_pk The private key of the signer.
+     * @return A 65-byte signature (r, s, v) of the order.
+     */
     function buildSignature(Validator.Order memory order, uint256 user_pk) public view returns (bytes memory) {
-        // Hash the order
         bytes32 structHash = hub.hashOrder(order);
-
-        // Compute the EIP-712 domain separator as the contract does
         bytes32 domainSeparator = hub.domainSeparator();
-
-        // Create the EIP-712 typed data hash
         bytes32 digest = keccak256(abi.encodePacked("\x19\x01", domainSeparator, structHash));
-
-        // Sign this EIP-712 digest using Foundry's vm.sign(...)
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(user_pk, digest);
-
-        // Pack (r, s, v) into a 65-byte signature
         return abi.encodePacked(r, s, v);
     }
 
+    /**
+     * @notice Validates that an order was successfully filled.
+     * @param user The order creator's address.
+     * @param filler The order filler’s address.
+     * @param inputAmount The expected input token amount.
+     * @param outputAmount The expected output token amount.
+     */
     function validateOrderWasFilled(address user, address filler, uint256 inputAmount, uint256 outputAmount)
         public
         view
     {
-        // OrderHub is empty
         assertEq(inputToken.balanceOf(address(hub)), 0, "OrderHub contract is not empty");
         assertEq(outputToken.balanceOf(address(hub)), 0, "OrderHub contract is not empty");
-        // User has received the desired tokens
         assertEq(inputToken.balanceOf(user), 0, "User still holds input tokens");
         assertEq(outputToken.balanceOf(user), outputAmount, "User didn't receive output tokens");
-        // Filler has received their payment
         assertEq(inputToken.balanceOf(filler), inputAmount, "Filler didn't receive input tokens");
         assertEq(outputToken.balanceOf(filler), 0, "Filler still holds output tokens");
-        // Executor contract is empty
         assertEq(inputToken.balanceOf(address(spoke)), 0, "OrderSpoke contract is not empty");
         assertEq(outputToken.balanceOf(address(spoke)), 0, "OrderSpoke contract is not empty");
     }
 
+    /**
+     * @notice Fills an order by invoking fillOrder on the OrderSpoke contract.
+     * @param order The order to fill.
+     * @param nonce The order nonce.
+     * @param maxGas The maximum gas limit for order processing.
+     * @param gasValue The provided gas value.
+     * @param filler The order filler’s address.
+     * @return The MessagingReceipt from the order fill.
+     */
     function fillOrder(Root.Order memory order, uint64 nonce, uint256 maxGas, uint256 gasValue, address filler)
         public
+        returns (MessagingReceipt memory)
     {
         bytes32 fillerEncoded = BytesUtils.addressToBytes32(filler);
-
         (uint256 fee, bytes memory options) = _getLzData(order, nonce, fillerEncoded);
-        spoke.fillOrder{value: fee}(order, nonce, fillerEncoded, maxGas, gasValue, options);
+        MessagingReceipt memory receipt =
+            spoke.fillOrder{value: fee}(order, nonce, fillerEncoded, maxGas, gasValue, options);
         verifyPackets(aEid, BytesUtils.addressToBytes32(address(hub)));
+        return receipt;
     }
 
+    /**
+     * @notice Builds an order for an ERC721 input with an ERC20 output.
+     * @param user The order creator's address.
+     * @param filler The order filler’s address.
+     * @param fromToken The ERC721 token address.
+     * @param fromTokenId The ERC721 token ID.
+     * @param inputAmount The ERC721 token amount (typically 1).
+     * @param toToken The ERC20 token address.
+     * @param outputAmount The ERC20 token amount.
+     * @param primaryFillerDeadlineOffset The primary filler deadline offset in seconds.
+     * @param deadlineOffset The overall order deadline offset in seconds.
+     * @return A Validator.Order representing the constructed order.
+     */
     function buildERC721Order(
         address user,
         address filler,
@@ -233,7 +282,6 @@ contract BaseTest is TestHelperOz5 {
         uint256 primaryFillerDeadlineOffset,
         uint256 deadlineOffset
     ) public view returns (Validator.Order memory) {
-        // Construct input/output token arrays
         Validator.Token[] memory inputs = new Validator.Token[](1);
         inputs[0] = Root.Token({
             tokenType: Root.Type.ERC721,
@@ -250,7 +298,6 @@ contract BaseTest is TestHelperOz5 {
             amount: outputAmount
         });
 
-        // Build the order struct
         return Root.Order({
             user: BytesUtils.addressToBytes32(user),
             filler: BytesUtils.addressToBytes32(filler),
@@ -266,25 +313,42 @@ contract BaseTest is TestHelperOz5 {
         });
     }
 
+    /**
+     * @notice Builds an order for an ERC1155 input with an ERC20 output.
+     * @param user The order creator's address.
+     * @param filler The order filler’s address.
+     * @param fromToken The ERC1155 token address.
+     * @param fromTokenIds The ERC1155 token IDs.
+     * @param inputAmount The ERC1155 token amount.
+     * @param toToken The ERC20 token address.
+     * @param outputAmount The ERC20 token amount.
+     * @param primaryFillerDeadlineOffset The primary filler deadline offset in seconds.
+     * @param deadlineOffset The overall order deadline offset in seconds.
+     * @return A Validator.Order representing the constructed order.
+     */
     function buildERC1155Order(
         address user,
         address filler,
         address fromToken,
-        uint256 fromTokenId,
+        uint256[] memory fromTokenIds,
         uint256 inputAmount,
         address toToken,
         uint256 outputAmount,
         uint256 primaryFillerDeadlineOffset,
         uint256 deadlineOffset
     ) public view returns (Validator.Order memory) {
-        // Construct input/output token arrays
-        Validator.Token[] memory inputs = new Validator.Token[](1);
-        inputs[0] = Root.Token({
-            tokenType: Root.Type.ERC1155,
-            tokenAddress: BytesUtils.addressToBytes32(fromToken),
-            tokenId: fromTokenId,
-            amount: inputAmount
-        });
+        Validator.Token[] memory inputs = new Validator.Token[](fromTokenIds.length);
+        for (uint256 i = 0; i < fromTokenIds.length;) {
+            inputs[i] = Root.Token({
+                tokenType: Root.Type.ERC1155,
+                tokenAddress: BytesUtils.addressToBytes32(fromToken),
+                tokenId: fromTokenIds[i],
+                amount: inputAmount
+            });
+            unchecked {
+                ++i;
+            }
+        }
 
         Validator.Token[] memory outputs = new Validator.Token[](1);
         outputs[0] = Root.Token({
@@ -294,7 +358,65 @@ contract BaseTest is TestHelperOz5 {
             amount: outputAmount
         });
 
-        // Build the order struct
+        return Root.Order({
+            user: BytesUtils.addressToBytes32(user),
+            filler: BytesUtils.addressToBytes32(filler),
+            inputs: inputs,
+            outputs: outputs,
+            sourceChainEid: uint32(block.chainid),
+            destinationChainEid: uint32(block.chainid),
+            sponsored: false,
+            primaryFillerDeadline: uint64(block.timestamp + primaryFillerDeadlineOffset),
+            deadline: uint64(block.timestamp + deadlineOffset),
+            callRecipient: "",
+            callData: ""
+        });
+    }
+
+    /**
+     * @notice Builds an order for an ERC1155 batch input with an ERC20 output.
+     * @param user The order creator's address.
+     * @param filler The order filler’s address.
+     * @param fromToken The ERC1155 token address.
+     * @param fromTokenIds The ERC1155 token IDs.
+     * @param amounts The amounts for each ERC1155 token.
+     * @param toToken The ERC20 token address.
+     * @param outputAmount The ERC20 token amount.
+     * @param primaryFillerDeadlineOffset The primary filler deadline offset in seconds.
+     * @param deadlineOffset The overall order deadline offset in seconds.
+     * @return A Validator.Order representing the constructed order.
+     */
+    function buildERC1155BatchOrder(
+        address user,
+        address filler,
+        address fromToken,
+        uint256[] memory fromTokenIds,
+        uint256[] memory amounts,
+        address toToken,
+        uint256 outputAmount,
+        uint256 primaryFillerDeadlineOffset,
+        uint256 deadlineOffset
+    ) public view returns (Validator.Order memory) {
+        require(fromTokenIds.length == amounts.length, "IDs and amounts must have the same length");
+
+        Validator.Token[] memory inputs = new Validator.Token[](fromTokenIds.length);
+        for (uint256 i = 0; i < fromTokenIds.length; i++) {
+            inputs[i] = Root.Token({
+                tokenType: Root.Type.ERC1155,
+                tokenAddress: BytesUtils.addressToBytes32(fromToken),
+                tokenId: fromTokenIds[i],
+                amount: amounts[i]
+            });
+        }
+
+        Validator.Token[] memory outputs = new Validator.Token[](1);
+        outputs[0] = Root.Token({
+            tokenType: Root.Type.ERC20,
+            tokenAddress: BytesUtils.addressToBytes32(toToken),
+            tokenId: type(uint256).max,
+            amount: outputAmount
+        });
+
         return Root.Order({
             user: BytesUtils.addressToBytes32(user),
             filler: BytesUtils.addressToBytes32(filler),

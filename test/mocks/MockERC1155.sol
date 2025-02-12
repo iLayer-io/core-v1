@@ -9,4 +9,8 @@ contract MockERC1155 is ERC1155 {
     function mint(address to, uint256 id, uint256 amount, bytes memory data) external {
         _mint(to, id, amount, data);
     }
+
+    function mintBatch(address to, uint256[] calldata ids, uint256[] calldata values, bytes memory data) external {
+        _mintBatch(to, ids, values, data);
+    }
 }
