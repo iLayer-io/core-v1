@@ -9,6 +9,11 @@ import {BaseTest} from "./BaseTest.sol";
 import {MessagingReceipt} from "@layerzerolabs/lz-evm-protocol-v2/contracts/interfaces/ILayerZeroEndpointV2.sol";
 import {MockERC721} from "./mocks/MockERC721.sol";
 
+error RestrictedToPrimaryFiller();
+error OrderExpired();
+error OrderCannotBeFilled();
+error OrderPrimaryFillerExpired();
+
 event TokenSweep(address indexed token, address indexed caller, uint256 amount);
 
 /**
@@ -114,6 +119,7 @@ contract OrderSpokeTest is BaseTest {
     /**
      * @notice Tests that filling an order with an invalid filler reverts.
      */
+    /// forge-config: default.allow_internal_expect_revert = true
     function testFillOrderWithInvalidFiller() public {
         uint256 inputAmount = 1e18;
         uint256 outputAmount = 2 * 1e18;
@@ -141,6 +147,7 @@ contract OrderSpokeTest is BaseTest {
         outputToken.transfer(address(spoke), outputAmount);
 
         vm.expectRevert();
+        vm.expectRevert(RestrictedToPrimaryFiller.selector);
         fillOrder(order, nonce, 0, 0, invalidFiller);
         vm.stopPrank();
     }
@@ -148,6 +155,7 @@ contract OrderSpokeTest is BaseTest {
     /**
      * @notice Tests that filling an order after its deadline reverts.
      */
+    /// forge-config: default.allow_internal_expect_revert = true
     function testFillOrderWithExpiredDeadline() public {
         uint256 inputAmount = 1e18;
         uint256 outputAmount = 2 * 1e18;
@@ -173,6 +181,7 @@ contract OrderSpokeTest is BaseTest {
         outputToken.approve(address(spoke), outputAmount);
 
         vm.expectRevert();
+        vm.expectRevert(OrderExpired.selector);
         fillOrder(order, nonce, 0, 0, filler);
         vm.stopPrank();
     }
@@ -180,6 +189,7 @@ contract OrderSpokeTest is BaseTest {
     /**
      * @notice Tests that filling an order after the primary filler deadline reverts for the original filler and works for another.
      */
+    /// forge-config: default.allow_internal_expect_revert = true
     function testFillOrderWithExpiredPrimaryFillerDeadline() public {
         uint256 inputAmount = 1e18;
         uint256 outputAmount = 2 * 1e18;
@@ -205,6 +215,7 @@ contract OrderSpokeTest is BaseTest {
         outputToken.approve(address(spoke), outputAmount);
 
         vm.expectRevert();
+        vm.expectRevert(OrderCannotBeFilled.selector);
         fillOrder(order, nonce, 0, 0, filler);
         vm.stopPrank();
 
@@ -219,6 +230,7 @@ contract OrderSpokeTest is BaseTest {
     /**
      * @notice Tests that filling an already filled order reverts.
      */
+    /// forge-config: default.allow_internal_expect_revert = true
     function testFillOrderWithOrderAlreadyFilled() public {
         uint256 inputAmount = 1 ether;
         uint256 outputAmount = 2 ether;
@@ -249,6 +261,7 @@ contract OrderSpokeTest is BaseTest {
         outputToken.mint(filler, outputAmount);
 
         vm.expectRevert();
+        vm.expectRevert(OrderCannotBeFilled.selector);
         fillOrder(order, nonce, 0, 0, filler);
         vm.stopPrank();
     }
@@ -256,6 +269,7 @@ contract OrderSpokeTest is BaseTest {
     /**
      * @notice Tests that filling an order with insufficient output token amount reverts.
      */
+    /// forge-config: default.allow_internal_expect_revert = true
     function testFillOrderWithInsufficientAmount() public {
         uint256 inputAmount = 1e18;
         uint256 outputAmount = 2 * 1e18;
@@ -281,6 +295,7 @@ contract OrderSpokeTest is BaseTest {
         outputToken.approve(address(spoke), insufficientAmount);
 
         vm.expectRevert();
+        vm.expectRevert(OrderCannotBeFilled.selector);
         fillOrder(order, nonce, 0, 0, filler);
         vm.stopPrank();
     }
