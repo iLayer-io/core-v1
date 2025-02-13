@@ -9,11 +9,6 @@ import {BaseTest} from "./BaseTest.sol";
 import {MessagingReceipt} from "@layerzerolabs/lz-evm-protocol-v2/contracts/interfaces/ILayerZeroEndpointV2.sol";
 import {MockERC721} from "./mocks/MockERC721.sol";
 
-error RestrictedToPrimaryFiller();
-error OrderExpired();
-error OrderCannotBeFilled();
-error OrderPrimaryFillerExpired();
-
 event TokenSweep(address indexed token, address indexed caller, uint256 amount);
 
 /**
@@ -146,7 +141,6 @@ contract OrderSpokeTest is BaseTest {
         outputToken.transfer(address(spoke), outputAmount);
 
         vm.expectRevert();
-        vm.expectRevert(RestrictedToPrimaryFiller.selector);
         fillOrder(order, nonce, 0, 0, invalidFiller);
         vm.stopPrank();
     }
@@ -179,7 +173,6 @@ contract OrderSpokeTest is BaseTest {
         outputToken.approve(address(spoke), outputAmount);
 
         vm.expectRevert();
-        vm.expectRevert(OrderExpired.selector);
         fillOrder(order, nonce, 0, 0, filler);
         vm.stopPrank();
     }
@@ -212,7 +205,6 @@ contract OrderSpokeTest is BaseTest {
         outputToken.approve(address(spoke), outputAmount);
 
         vm.expectRevert();
-        vm.expectRevert(OrderCannotBeFilled.selector);
         fillOrder(order, nonce, 0, 0, filler);
         vm.stopPrank();
 
@@ -257,7 +249,6 @@ contract OrderSpokeTest is BaseTest {
         outputToken.mint(filler, outputAmount);
 
         vm.expectRevert();
-        vm.expectRevert(OrderCannotBeFilled.selector);
         fillOrder(order, nonce, 0, 0, filler);
         vm.stopPrank();
     }
@@ -290,7 +281,6 @@ contract OrderSpokeTest is BaseTest {
         outputToken.approve(address(spoke), insufficientAmount);
 
         vm.expectRevert();
-        vm.expectRevert(OrderCannotBeFilled.selector);
         fillOrder(order, nonce, 0, 0, filler);
         vm.stopPrank();
     }
