@@ -61,14 +61,4 @@ contract Root {
             revert UnsupportedTransfer();
         }
     }
-
-    function _transferBatch(
-        address from,
-        address to,
-        address tokenAddress,
-        uint256[] memory ids,
-        uint256[] memory amounts
-    ) internal {
-        IERC1155(tokenAddress).safeBatchTransferFrom(from, to, ids, amounts, "");
-    }
 }

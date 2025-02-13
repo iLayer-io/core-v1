@@ -63,43 +63,6 @@ contract OrderHub is Validator, ReentrancyGuard, OAppReceiver, IERC165, IERC721R
         maxOrderDeadline = newMaxOrderDeadline;
     }
 
-    // function createOrder(OrderRequest memory request, bytes[] memory permits, bytes memory signature)
-    //     external
-    //     payable
-    //     nonReentrant
-    //     returns (bytes32, uint64)
-    // {
-    //     Order memory order = request.order;
-    //     address user = BytesUtils.bytes32ToAddress(order.user);
-
-    //     // validate order request
-    //     if (requestNonces[user][request.nonce]) revert RequestNonceReused();
-    //     if (block.timestamp > request.deadline) revert RequestExpired();
-
-    //     // validate order
-    //     _checkOrderValidity(order, permits, signature);
-
-    //     requestNonces[user][request.nonce] = true; // mark the nonce as used
-    //     uint64 orderNonce = ++nonce; // increment the nonce to guarantee order uniqueness
-    //     bytes32 orderId = getOrderId(order, orderNonce);
-    //     orders[orderId] = Status.ACTIVE;
-
-    //     for (uint256 i = 0; i < order.inputs.length; i++) {
-    //         Token memory input = order.inputs[i];
-
-    //         address tokenAddress = BytesUtils.bytes32ToAddress(input.tokenAddress);
-    //         if (permits[i].length > 0) {
-    //             _applyPermits(permits[i], user, tokenAddress);
-    //         }
-
-    //         _transfer(input.tokenType, user, address(this), tokenAddress, input.tokenId, input.amount);
-    //     }
-
-    //     emit OrderCreated(orderId, orderNonce, order, msg.sender);
-
-    //     return (orderId, orderNonce);
-    // }
-
     /// @notice create off-chain order, signature must be valid
     function createOrder(OrderRequest memory request, bytes[] memory permits, bytes memory signature)
         external
@@ -110,96 +73,152 @@ contract OrderHub is Validator, ReentrancyGuard, OAppReceiver, IERC165, IERC721R
         Order memory order = request.order;
         address user = BytesUtils.bytes32ToAddress(order.user);
 
-        // Validate the order request
+        // validate order request
         if (requestNonces[user][request.nonce]) revert RequestNonceReused();
         if (block.timestamp > request.deadline) revert RequestExpired();
 
+        // validate order
         _checkOrderValidity(order, permits, signature);
 
-        requestNonces[user][request.nonce] = true; // Mark the nonce as used
-        uint64 orderNonce = ++nonce; // Increment nonce to guarantee uniqueness
+        requestNonces[user][request.nonce] = true; // mark the nonce as used
+        uint64 orderNonce = ++nonce; // increment the nonce to guarantee order uniqueness
         bytes32 orderId = getOrderId(order, orderNonce);
         orders[orderId] = Status.ACTIVE;
 
-        // First loop: Process all inputs.
-        // For tokens that are not ERC1155, transfer them individually.
-        // For ERC1155 tokens, apply the permit but defer the transfer.
         for (uint256 i = 0; i < order.inputs.length; i++) {
             Token memory input = order.inputs[i];
-            address tokenAddress = BytesUtils.bytes32ToAddress(input.tokenAddress);
 
+            address tokenAddress = BytesUtils.bytes32ToAddress(input.tokenAddress);
             if (permits[i].length > 0) {
                 _applyPermits(permits[i], user, tokenAddress);
             }
 
-            if (input.tokenType != Type.ERC1155) {
-                _transfer(input.tokenType, user, address(this), tokenAddress, input.tokenId, input.amount);
-            }
-        }
-
-        // Second loop: Group ERC1155 inputs by tokenAddress.
-        // 1. Collect distinct token addresses from ERC1155 inputs.
-        uint256 distinctCount = 0;
-        address[] memory erc1155Addresses = new address[](order.inputs.length);
-        for (uint256 i = 0; i < order.inputs.length; i++) {
-            if (order.inputs[i].tokenType == Type.ERC1155) {
-                address tokenAddr = BytesUtils.bytes32ToAddress(order.inputs[i].tokenAddress);
-                bool exists = false;
-                for (uint256 j = 0; j < distinctCount; j++) {
-                    if (erc1155Addresses[j] == tokenAddr) {
-                        exists = true;
-                        break;
-                    }
-                }
-                if (!exists) {
-                    erc1155Addresses[distinctCount] = tokenAddr;
-                    distinctCount++;
-                }
-            }
-        }
-
-        // 2. For each distinct ERC1155 token address, build arrays of ids and amounts, then perform the transfer.
-        for (uint256 j = 0; j < distinctCount; j++) {
-            address tokenAddr = erc1155Addresses[j];
-
-            // Count how many inputs correspond to this tokenAddress
-            uint256 count = 0;
-            for (uint256 i = 0; i < order.inputs.length; i++) {
-                if (
-                    order.inputs[i].tokenType == Type.ERC1155
-                        && BytesUtils.bytes32ToAddress(order.inputs[i].tokenAddress) == tokenAddr
-                ) {
-                    count++;
-                }
-            }
-
-            // Create arrays for ids and amounts
-            uint256[] memory ids = new uint256[](count);
-            uint256[] memory amounts = new uint256[](count);
-            uint256 index = 0;
-            for (uint256 i = 0; i < order.inputs.length; i++) {
-                if (
-                    order.inputs[i].tokenType == Type.ERC1155
-                        && BytesUtils.bytes32ToAddress(order.inputs[i].tokenAddress) == tokenAddr
-                ) {
-                    ids[index] = order.inputs[i].tokenId;
-                    amounts[index] = order.inputs[i].amount;
-                    index++;
-                }
-            }
-
-            // If only one token exists in the group, perform an individual transfer.
-            // Otherwise, perform a batch transfer.
-            if (count == 1) {
-                _transfer(Type.ERC1155, user, address(this), tokenAddr, ids[0], amounts[0]);
-            } else {
-                _transferBatch(user, address(this), tokenAddr, ids, amounts);
-            }
+            _transfer(input.tokenType, user, address(this), tokenAddress, input.tokenId, input.amount);
         }
 
         emit OrderCreated(orderId, orderNonce, order, msg.sender);
+
         return (orderId, orderNonce);
     }
+
+    // function createOrder(
+    //     OrderRequest memory request,
+    //     bytes[] memory permits,
+    //     bytes memory signature
+    // ) external payable nonReentrant returns (bytes32, uint64) {
+    //     Order memory order = request.order;
+    //     address user = BytesUtils.bytes32ToAddress(order.user);
+
+    //     // Validate the order request
+    //     if (requestNonces[user][request.nonce]) revert RequestNonceReused();
+    //     if (block.timestamp > request.deadline) revert RequestExpired();
+
+    //     _checkOrderValidity(order, permits, signature);
+
+    //     requestNonces[user][request.nonce] = true; // Mark the nonce as used
+    //     uint64 orderNonce = ++nonce; // Increment nonce to guarantee uniqueness
+    //     bytes32 orderId = getOrderId(order, orderNonce);
+    //     orders[orderId] = Status.ACTIVE;
+
+    //     // First loop: Process all inputs.
+    //     // For tokens that are not ERC1155, transfer them individually.
+    //     // For ERC1155 tokens, apply the permit but defer the transfer.
+    //     for (uint256 i = 0; i < order.inputs.length; i++) {
+    //         Token memory input = order.inputs[i];
+    //         address tokenAddress = BytesUtils.bytes32ToAddress(
+    //             input.tokenAddress
+    //         );
+
+    //         if (permits[i].length > 0) {
+    //             _applyPermits(permits[i], user, tokenAddress);
+    //         }
+
+    //         if (input.tokenType != Type.ERC1155) {
+    //             _transfer(
+    //                 input.tokenType,
+    //                 user,
+    //                 address(this),
+    //                 tokenAddress,
+    //                 input.tokenId,
+    //                 input.amount
+    //             );
+    //         }
+    //     }
+
+    //     // Second loop: Group ERC1155 inputs by tokenAddress.
+    //     // 1. Collect distinct token addresses from ERC1155 inputs.
+    //     uint256 distinctCount = 0;
+    //     address[] memory erc1155Addresses = new address[](order.inputs.length);
+    //     for (uint256 i = 0; i < order.inputs.length; i++) {
+    //         if (order.inputs[i].tokenType == Type.ERC1155) {
+    //             address tokenAddr = BytesUtils.bytes32ToAddress(
+    //                 order.inputs[i].tokenAddress
+    //             );
+    //             bool exists = false;
+    //             for (uint256 j = 0; j < distinctCount; j++) {
+    //                 if (erc1155Addresses[j] == tokenAddr) {
+    //                     exists = true;
+    //                     break;
+    //                 }
+    //             }
+    //             if (!exists) {
+    //                 erc1155Addresses[distinctCount] = tokenAddr;
+    //                 distinctCount++;
+    //             }
+    //         }
+    //     }
+
+    //     // 2. For each distinct ERC1155 token address, build arrays of ids and amounts, then perform the transfer.
+    //     for (uint256 j = 0; j < distinctCount; j++) {
+    //         address tokenAddr = erc1155Addresses[j];
+
+    //         // Count how many inputs correspond to this tokenAddress
+    //         uint256 count = 0;
+    //         for (uint256 i = 0; i < order.inputs.length; i++) {
+    //             if (
+    //                 order.inputs[i].tokenType == Type.ERC1155 &&
+    //                 BytesUtils.bytes32ToAddress(order.inputs[i].tokenAddress) ==
+    //                 tokenAddr
+    //             ) {
+    //                 count++;
+    //             }
+    //         }
+
+    //         // Create arrays for ids and amounts
+    //         uint256[] memory ids = new uint256[](count);
+    //         uint256[] memory amounts = new uint256[](count);
+    //         uint256 index = 0;
+    //         for (uint256 i = 0; i < order.inputs.length; i++) {
+    //             if (
+    //                 order.inputs[i].tokenType == Type.ERC1155 &&
+    //                 BytesUtils.bytes32ToAddress(order.inputs[i].tokenAddress) ==
+    //                 tokenAddr
+    //             ) {
+    //                 ids[index] = order.inputs[i].tokenId;
+    //                 amounts[index] = order.inputs[i].amount;
+    //                 index++;
+    //             }
+    //         }
+
+    //         // If only one token exists in the group, perform an individual transfer.
+    //         // Otherwise, perform a batch transfer.
+    //         if (count == 1) {
+    //             _transfer(
+    //                 Type.ERC1155,
+    //                 user,
+    //                 address(this),
+    //                 tokenAddr,
+    //                 ids[0],
+    //                 amounts[0]
+    //             );
+    //         } else {
+    //             _transferBatch(user, address(this), tokenAddr, ids, amounts);
+    //         }
+    //     }
+
+    //     emit OrderCreated(orderId, orderNonce, order, msg.sender);
+    //     return (orderId, orderNonce);
+    // }
 
     function withdrawOrder(Order memory order, uint64 orderNonce) external nonReentrant {
         address user = BytesUtils.bytes32ToAddress(order.user);
