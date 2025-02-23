@@ -4,8 +4,10 @@ pragma solidity ^0.8.24;
 import {Root} from "../src/Root.sol";
 import {Validator} from "../src/Validator.sol";
 import {OrderHub} from "../src/OrderHub.sol";
+import {BytesUtils} from "../src/libraries/BytesUtils.sol";
 import {BaseTest} from "./BaseTest.sol";
 import {MockERC721} from "./mocks/MockERC721.sol";
+import "forge-std/console2.sol";
 
 event ERC721Received(address operator, address from, uint256 tokenId, bytes data);
 
@@ -20,6 +22,96 @@ event ERC1155BatchReceived(address operator, address from, uint256[] ids, uint25
  */
 contract OrderHubTest is BaseTest {
     constructor() BaseTest() {}
+    
+    function testHashTokenStruct() public {
+        bytes32 formattedAddress = BytesUtils.addressToBytes32(0x8ce361602B935680E8DeC218b820ff5056BeB7af);
+        console2.logBytes32(formattedAddress);
+        Root.Token memory token = Root.Token({
+            tokenType: Root.Type.ERC20,
+            tokenAddress: formattedAddress,
+            tokenId: 0,
+            amount: 1e18
+        });
+        bytes32 hash = hub.hashTokenStruct(token);
+        assertEq(hash, 0x859e0cd1788b7f6fd5eda39c624f4644103d38121fe9e9d35b8631da12a639c8);
+    }
+    
+    function testHashTokenArray() public {
+        bytes32 formattedAddress1 = BytesUtils.addressToBytes32(0x8ce361602B935680E8DeC218b820ff5056BeB7af);
+        console2.logBytes32(formattedAddress1);
+        Root.Token memory token1 = Root.Token({
+            tokenType: Root.Type.ERC20,
+            tokenAddress: formattedAddress1,
+            tokenId: 0,
+            amount: 1e18
+        });
+        bytes32 formattedAddress2 = BytesUtils.addressToBytes32(0xe1Aa25618fA0c7A1CFDab5d6B456af611873b629);
+        console2.logBytes32(formattedAddress2);
+        Root.Token memory token2 = Root.Token({
+            tokenType: Root.Type.ERC20,
+            tokenAddress: formattedAddress2,
+            tokenId: 0,
+            amount: 5*1e18
+        });
+
+        Root.Token[] memory tokens = new Root.Token[](2);
+        tokens[0] = token1;
+        tokens[1] = token2;
+
+        bytes32 hash = hub.hashTokenArray(tokens);
+        assertEq(hash, 0x239f3540b073b62c0850901eaa3b0bec2c4b07a03c16be6768b9dde41c23bf0b);
+    }
+
+
+        function testHashOrder() public {
+        bytes32 formattedAddress1 = BytesUtils.addressToBytes32(0x8ce361602B935680E8DeC218b820ff5056BeB7af);
+        console2.logBytes32(formattedAddress1);
+        Root.Token memory token1 = Root.Token({
+            tokenType: Root.Type.ERC20,
+            tokenAddress: formattedAddress1,
+            tokenId: 0,
+            amount: 1e18
+        });
+        bytes32 formattedAddress2 = BytesUtils.addressToBytes32(0xe1Aa25618fA0c7A1CFDab5d6B456af611873b629);
+        console2.logBytes32(formattedAddress2);
+        Root.Token memory token2 = Root.Token({
+            tokenType: Root.Type.ERC20,
+            tokenAddress: formattedAddress2,
+            tokenId: 0,
+            amount: 5*1e18
+        });
+
+        Root.Token[] memory tokens = new Root.Token[](2);
+        tokens[0] = token1;
+        tokens[1] = token2;
+
+        bytes32 user = BytesUtils.addressToBytes32(0xa0Ee7A142d267C1f36714E4a8F75612F20a79720);
+        console2.logBytes32(user);
+        bytes32 filler = BytesUtils.addressToBytes32(0x23618e81E3f5cdF7f54C3d65f7FBc0aBf5B21E8f);
+        console2.logBytes32(filler);
+
+
+
+        Root.Order memory order = Root.Order({
+            user: user,
+            filler: filler,
+            inputs: tokens,
+            outputs: tokens,
+            sourceChainEid: aEid, // 1
+            destinationChainEid: bEid, // 2
+            sponsored: false,
+            primaryFillerDeadline: uint64(0),
+            deadline: uint64(1),
+            callRecipient: "",
+            callData: ""
+        });
+
+        console2.logBytes(order.callData);
+        // console2.logBytes(order.callRecipient);
+
+        bytes32 hash = hub.hashOrder(order);
+        assertEq(hash, 0x3bae966f90325d8ab7bc963b2f54eb8c8072b70f7e419024112c33d16a21dcb8);
+    }
 
     /**
      * @notice Test order creation for an ERC20 token swap.

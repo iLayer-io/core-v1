@@ -32,13 +32,13 @@ contract Validator is Root, EIP712 {
         return _domainSeparatorV4();
     }
 
-    function hashTokenStruct(Token memory token) internal pure returns (bytes32) {
+    function hashTokenStruct(Token memory token) public pure returns (bytes32) {
         return keccak256(
             abi.encode(TOKEN_TYPEHASH, uint8(token.tokenType), token.tokenAddress, token.tokenId, token.amount)
         );
     }
 
-    function hashTokenArray(Token[] memory tokens) internal pure returns (bytes32) {
+    function hashTokenArray(Token[] memory tokens) public pure returns (bytes32) {
         bytes32[] memory tokenHashes = new bytes32[](tokens.length);
         for (uint256 i = 0; i < tokens.length; i++) {
             tokenHashes[i] = hashTokenStruct(tokens[i]);
