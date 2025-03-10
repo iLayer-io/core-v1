@@ -1,0 +1,43 @@
+appName: "iLayer-core"
+version: "1.0.0"
+
+chains:
+  - name: ethereum
+    chainId: 1
+    rpc: "https://mainnet.infura.io/v3/INFURA_KEY"
+    remoteChainId: 101
+    endpointAddress: "0x1a44076050125825900e736c501f859c50fE728c"
+    sendLibrary: "0xbB2Ea70C9E858123480642Cf96acbcCE1372dCe1"
+    receiveLibrary: "0xc02Ab410f0734EFa3F14628780e6e695156024C2"
+    uln:
+      confirmations: 15
+      requiredDVNCount: 2
+      optionalDVNCount: 0
+      optionalDVNThreshold: 0
+      requiredDVNs:
+        - "0x589dEDbD617e0CBcB916A9223F4d1300c294236b"
+        - "0xD56e4eAb23cb81f43168F9F45211Eb027b9aC7cc"
+      optionalDVNs: []
+    executor:
+      executorAddress: "0x173272739Bd7Aa6e4e214714048a9fE699453059"
+      maxMessageSize: 10000
+
+  - name: polygon
+    chainId: 137
+    rpc: "https://polygon-rpc.com/"
+    remoteChainId: 109
+    endpointAddress: "0x1a44076050125825900e736c501f859c50fE728c"
+    sendLibrary: "0x6c26c61a97006888ea9E4FA36584c7df57Cd9dA3"
+    receiveLibrary: "0x1322871e4ab09Bc7f5717189434f97bBD9546e95"
+    uln:
+      confirmations: 512
+      requiredDVNCount: 2
+      optionalDVNCount: 0
+      optionalDVNThreshold: 0
+      requiredDVNs:
+        - "0x23DE2FE932d9043291f870324B74F820e11dc81A"
+        - "0xD56e4eAb23cb81f43168F9F45211Eb027b9aC7cc"
+      optionalDVNs: []
+    executor:
+      executorAddress: "0xCd3F213AD101472e1713C72B1697E727C803885b"
+      maxMessageSize: 10000
