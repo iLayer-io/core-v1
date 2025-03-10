@@ -38,7 +38,7 @@ for (( i=0; i<chain_count; i++ )); do
     EXECUTOR_ADDRESS=$(yq e ".chains[$i].executor.executorAddress" "$CONFIG_FILE")
     EXECUTOR_MAX_MESSAGE_SIZE=$(yq e ".chains[$i].executor.maxMessageSize" "$CONFIG_FILE")
 
-    # Export these variables for the Forge script to use
+    # Export these variables for the Forge scripts to use
     export ENDPOINT_ADDRESS
     export SEND_LIBRARY
     export RECEIVE_LIBRARY
@@ -51,8 +51,14 @@ for (( i=0; i<chain_count; i++ )); do
     export EXECUTOR_ADDRESS
     export EXECUTOR_MAX_MESSAGE_SIZE
 
-    echo "Deploying Create3Factory on $NAME using RPC $RPC..."
-    forge script script/DeployCreate3Factory.s.sol --rpc-url "$RPC" --broadcast --private-key "$PRIVATE_KEY"
+    echo "Deploying CREATE3Factory on $NAME using RPC $RPC..."
+    # Deploy CREATE3Factory and capture its deployed address from output
+    CREATE3_FACTORY=$(forge script script/DeployCreate3Factory.s.sol --rpc-url "$RPC" --broadcast --private-key "$PRIVATE_KEY" | grep "Deployed CREATE3Factory at:" | awk '{print $NF}')
+    if [ -z "$CREATE3_FACTORY" ]; then
+        echo "Error: Failed to deploy CREATE3Factory on $NAME."
+        exit 1
+    fi
+    export CREATE3_FACTORY
 
     echo "Deploying OrderHub-Spoke on $NAME using RPC $RPC..."
     forge script script/DeployHubSpoke.s.sol --rpc-url "$RPC" --broadcast --private-key "$PRIVATE_KEY"

@@ -2,7 +2,7 @@
 pragma solidity ^0.8.20;
 
 import "forge-std/Script.sol";
-import {Create3Factory} from "../lib/create3-factory/src/CREATE3Factory.sol";
+import {CREATE3Factory} from "../lib/create3-factory/src/CREATE3Factory.sol";
 
 contract DeployCreate3Factory is Script {
     function run() external {
@@ -11,9 +11,9 @@ contract DeployCreate3Factory is Script {
 
         // Avvia il broadcast per il deploy
         vm.startBroadcast(deployerPrivateKey);
-        Create3Factory factory = new Create3Factory();
+        CREATE3Factory factory = new CREATE3Factory();
         vm.stopBroadcast();
 
-        console.log("Deployed Create3Factory at:", address(factory));
+        console.log("Create3Factory deployed at:", address(factory));
     }
 }
