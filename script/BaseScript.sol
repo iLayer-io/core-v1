@@ -33,7 +33,7 @@ contract BaseScript is Script {
     }
 
     function deployContracts() public {
-        hub = new OrderHubMock();
+        hub = new OrderHubMock(1 days, 0);
         spoke = new OrderSpokeMock(address(hub));
         vm.setEnv("HUB_ADDRESS", Strings.toChecksumHexString(address(hub)));
         vm.setEnv("SPOKE_ADDRESS", Strings.toChecksumHexString(address(spoke)));
