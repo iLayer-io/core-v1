@@ -354,16 +354,13 @@ contract OrderSpokeTest is BaseTest {
         Root.Order memory order = buildOrder(
             user0, filler, address(inputToken), inputAmount, address(outputToken), outputAmount, 1 minutes, 5 minutes
         );
-
         order.callRecipient = BytesUtils.addressToBytes32(address(target));
         order.callData = abi.encodeWithSelector(target.foo.selector, 1234);
         order.callValue = uint256(gasValue);
-
         bytes memory signature = buildSignature(order, user0_pk);
 
-        inputToken.mint(user0, inputAmount);
-
         vm.startPrank(user0);
+        inputToken.mint(user0, inputAmount);
         inputToken.approve(address(hub), inputAmount);
         (, uint64 nonce) = hub.createOrder(buildOrderRequest(order, 1), permits, signature);
         vm.stopPrank();
@@ -413,5 +410,36 @@ contract OrderSpokeTest is BaseTest {
 
         assertEq(user1.balance, initialBalance + 1 ether);
         assertEq(address(spoke).balance, 0);
+    }
+
+    /**
+     * @notice Test destination endpoint validation.
+     */
+    function testIncorrectEidRevert() public {
+        address filler = user1;
+
+        uint256 inputAmount = 1e18;
+        uint256 outputAmount = 2e18;
+        Root.Order memory order = buildOrder(
+            user0, user1, address(inputToken), inputAmount, address(outputToken), outputAmount, 1 minutes, 5 minutes
+        );
+        order.destinationChainEid = 5;
+        bytes memory signature = buildSignature(order, user0_pk);
+
+        vm.startPrank(user0);
+        inputToken.mint(user0, inputAmount);
+        inputToken.approve(address(hub), inputAmount);
+        (, uint64 nonce) = hub.createOrder(buildOrderRequest(order, 1), permits, signature);
+        vm.stopPrank();
+
+        vm.startPrank(filler);
+        outputToken.mint(filler, outputAmount);
+        outputToken.transfer(address(spoke), outputAmount);
+
+        bytes32 fillerEncoded = BytesUtils.addressToBytes32(filler);
+        (uint256 fee, bytes memory options) = _getLzData(order, nonce, fillerEncoded);
+        vm.expectRevert();
+        spoke.fillOrder{value: fee}(order, nonce, fillerEncoded, 0, 0, options);
+        vm.stopPrank();
     }
 }

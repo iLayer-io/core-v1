@@ -28,6 +28,7 @@ contract OrderSpoke is Root, ReentrancyGuard, OAppSender {
 
     error OrderCannotBeFilled();
     error OrderExpired();
+    error InvalidDestinationChain();
     error RestrictedToPrimaryFiller();
     error InsufficientGasValue();
     error ExternalCallFailed();
@@ -81,6 +82,7 @@ contract OrderSpoke is Root, ReentrancyGuard, OAppSender {
         uint64 currentTime = uint64(block.timestamp);
         if (currentTime > order.deadline) revert OrderExpired();
         if (ordersFilled[orderId]) revert OrderCannotBeFilled();
+        if (order.destinationChainEid != endpoint.eid()) revert InvalidDestinationChain();
 
         address filler = BytesUtils.bytes32ToAddress(order.filler);
         if (filler != address(0) && currentTime <= order.primaryFillerDeadline && filler != msg.sender) {
