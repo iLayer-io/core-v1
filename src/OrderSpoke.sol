@@ -109,4 +109,8 @@ contract OrderSpoke is Root, ReentrancyGuard, OAppSender {
             _transfer(output.tokenType, address(this), to, tokenAddress, output.tokenId, output.amount);
         }
     }
+
+    function _payNative(uint256 _nativeFee) internal pure override returns (uint256 nativeFee) {
+        return _nativeFee;
+    }
 }
