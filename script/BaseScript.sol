@@ -83,7 +83,8 @@ contract BaseScript is Script {
             primaryFillerDeadline: fillerDeadlineOffset,
             deadline: mainDeadlineOffset,
             callRecipient: "",
-            callData: ""
+            callData: "",
+            callValue: 0
         });
     }
 

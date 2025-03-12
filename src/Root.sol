@@ -17,6 +17,7 @@ contract Root {
 
     enum Type {
         NULL,
+        NATIVE,
         ERC20,
         ERC721,
         ERC1155
@@ -41,8 +42,10 @@ contract Root {
         uint64 deadline;
         bytes32 callRecipient;
         bytes callData;
+        uint256 callValue;
     }
 
+    error NativeTransferFailed();
     error UnsupportedTransfer();
 
     function getOrderId(Order memory order, uint256 nonce) public pure returns (bytes32) {
@@ -53,6 +56,14 @@ contract Root {
         if (tokenType == Type.ERC20) {
             if (from == address(this)) IERC20(token).safeTransfer(to, amount);
             else IERC20(token).safeTransferFrom(from, to, amount);
+        } else if (tokenType == Type.NATIVE) {
+            if (from == address(this)) {
+                (bool success,) = to.call{value: amount}("");
+                if (!success) revert NativeTransferFailed();
+            } else {
+                // simply check the gas value sent is enough
+                if (msg.value < amount) revert NativeTransferFailed();
+            }
         } else if (tokenType == Type.ERC721) {
             IERC721(token).safeTransferFrom(from, to, id);
         } else if (tokenType == Type.ERC1155) {

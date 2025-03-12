@@ -166,7 +166,7 @@ contract BaseTest is TestHelperOz5 {
     /**
      * @notice Builds an order for an ERC20 token swap.
      * @param user The order creator's address.
-     * @param filler The order filler’s address.
+     * @param filler The order filler's address.
      * @param fromToken The input token address.
      * @param inputAmount The input token amount.
      * @param toToken The output token address.
@@ -198,7 +198,35 @@ contract BaseTest is TestHelperOz5 {
             primaryFillerDeadline: uint64(block.timestamp + primaryFillerDeadlineOffset),
             deadline: uint64(block.timestamp + deadlineOffset),
             callRecipient: "",
-            callData: ""
+            callData: "",
+            callValue: 0
+        });
+    }
+
+    function buildOrderBase(
+        Root.Token[] memory inputs,
+        Root.Token[] memory outputs,
+        address user,
+        address filler,
+        uint256 primaryFillerDeadlineOffset,
+        uint256 deadlineOffset,
+        bytes32 callRecipient,
+        bytes memory callData,
+        uint256 callValue
+    ) public view returns (Root.Order memory) {
+        return Root.Order({
+            user: BytesUtils.addressToBytes32(user),
+            filler: BytesUtils.addressToBytes32(filler),
+            inputs: inputs,
+            outputs: outputs,
+            sourceChainEid: aEid,
+            destinationChainEid: bEid,
+            sponsored: false,
+            primaryFillerDeadline: uint64(block.timestamp + primaryFillerDeadlineOffset),
+            deadline: uint64(block.timestamp + deadlineOffset),
+            callRecipient: callRecipient,
+            callData: callData,
+            callValue: callValue
         });
     }
 
@@ -219,7 +247,7 @@ contract BaseTest is TestHelperOz5 {
     /**
      * @notice Validates that an order was successfully filled.
      * @param user The order creator's address.
-     * @param filler The order filler’s address.
+     * @param filler The order filler's address.
      * @param inputAmount The expected input token amount.
      * @param outputAmount The expected output token amount.
      */
@@ -242,26 +270,28 @@ contract BaseTest is TestHelperOz5 {
      * @param order The order to fill.
      * @param nonce The order nonce.
      * @param maxGas The maximum gas limit for order processing.
-     * @param gasValue The provided gas value.
-     * @param filler The order filler’s address.
+     * @param filler The order filler's address.
      * @return The MessagingReceipt from the order fill.
      */
-    function fillOrder(Root.Order memory order, uint64 nonce, uint256 maxGas, uint256 gasValue, address filler)
+    function fillOrder(Root.Order memory order, uint64 nonce, uint256 maxGas, address filler)
         public
+        payable
         returns (MessagingReceipt memory)
     {
         bytes32 fillerEncoded = BytesUtils.addressToBytes32(filler);
         (uint256 fee, bytes memory options) = _getLzData(order, nonce, fillerEncoded);
+
         MessagingReceipt memory receipt =
-            spoke.fillOrder{value: fee}(order, nonce, fillerEncoded, maxGas, gasValue, options);
+            spoke.fillOrder{value: fee + order.callValue}(order, nonce, fillerEncoded, maxGas, options);
         verifyPackets(aEid, BytesUtils.addressToBytes32(address(hub)));
+
         return receipt;
     }
 
     /**
      * @notice Builds an order for an ERC721 input with an ERC20 output.
      * @param user The order creator's address.
-     * @param filler The order filler’s address.
+     * @param filler The order filler's address.
      * @param fromToken The ERC721 token address.
      * @param fromTokenId The ERC721 token ID.
      * @param inputAmount The ERC721 token amount (typically 1).
@@ -309,14 +339,15 @@ contract BaseTest is TestHelperOz5 {
             primaryFillerDeadline: uint64(block.timestamp + primaryFillerDeadlineOffset),
             deadline: uint64(block.timestamp + deadlineOffset),
             callRecipient: "",
-            callData: ""
+            callData: "",
+            callValue: 0
         });
     }
 
     /**
      * @notice Builds an order for an ERC1155 input with an ERC20 output.
      * @param user The order creator's address.
-     * @param filler The order filler’s address.
+     * @param filler The order filler's address.
      * @param fromToken The ERC1155 token address.
      * @param fromTokenIds The ERC1155 token IDs.
      * @param inputAmount The ERC1155 token amount.
@@ -369,14 +400,15 @@ contract BaseTest is TestHelperOz5 {
             primaryFillerDeadline: uint64(block.timestamp + primaryFillerDeadlineOffset),
             deadline: uint64(block.timestamp + deadlineOffset),
             callRecipient: "",
-            callData: ""
+            callData: "",
+            callValue: 0
         });
     }
 
     /**
      * @notice Builds an order for an ERC1155 batch input with an ERC20 output.
      * @param user The order creator's address.
-     * @param filler The order filler’s address.
+     * @param filler The order filler's address.
      * @param fromToken The ERC1155 token address.
      * @param fromTokenIds The ERC1155 token IDs.
      * @param amounts The amounts for each ERC1155 token.
@@ -428,7 +460,8 @@ contract BaseTest is TestHelperOz5 {
             primaryFillerDeadline: uint64(block.timestamp + primaryFillerDeadlineOffset),
             deadline: uint64(block.timestamp + deadlineOffset),
             callRecipient: "",
-            callData: ""
+            callData: "",
+            callValue: 0
         });
     }
 }

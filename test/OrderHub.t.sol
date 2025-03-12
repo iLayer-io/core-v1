@@ -557,4 +557,41 @@ contract OrderHubTest is BaseTest {
         assertEq(inputERC1155Token.balanceOf(user0, 1), 0);
         assertEq(inputERC1155Token.balanceOf(address(hub), 1), 2);
     }
+
+    /**
+     * @notice Test create and withdraw an order of native tokens
+     */
+    function testNativeTokenOrder() public {
+        uint256 inputAmount = 1e18;
+        vm.deal(user0, inputAmount);
+
+        Root.Token[] memory inputs = new Root.Token[](1);
+        inputs[0] = Root.Token({tokenType: Root.Type.NATIVE, tokenAddress: "", tokenId: 0, amount: inputAmount});
+
+        Root.Token[] memory outputs = new Root.Token[](1);
+        outputs[0] = Root.Token({tokenType: Root.Type.ERC20, tokenAddress: "", tokenId: 0, amount: 0});
+
+        Root.Order memory order = buildOrderBase(inputs, outputs, user0, user1, 1 minutes, 5 minutes, "", "", 0);
+
+        bytes memory signature = buildSignature(order, user0_pk);
+
+        vm.expectRevert();
+        hub.createOrder(buildOrderRequest(order, 1), permits, signature);
+
+        vm.prank(user0);
+        uint256 initialBalance = user0.balance;
+        assertEq(address(hub).balance, 0);
+        hub.createOrder{value: inputAmount}(buildOrderRequest(order, 1), permits, signature);
+        assertEq(address(hub).balance, inputAmount);
+        assertEq(user0.balance, initialBalance - inputAmount);
+        vm.stopPrank();
+
+        vm.warp(block.timestamp + 5 minutes);
+
+        vm.prank(user0);
+        initialBalance = user0.balance;
+        hub.withdrawOrder(order, 1);
+        assertEq(address(hub).balance, 0);
+        assertEq(user0.balance, initialBalance + inputAmount);
+    }
 }

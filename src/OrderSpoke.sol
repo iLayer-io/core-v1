@@ -22,24 +22,24 @@ contract OrderSpoke is Root, ReentrancyGuard, OAppSender {
     mapping(bytes32 => bool) public ordersFilled;
 
     event OrderFilled(bytes32 indexed orderId, Order indexed order, address indexed caller, MessagingReceipt receipt);
-    event TokenSweep(address indexed token, address indexed caller, uint256 amount);
-    event PositiveSlippage(bytes32 indexed orderId, uint256 amount, uint256 receivedAmount);
+    event TokenSweep(
+        Type indexed tokenType, uint256 tokenId, address indexed token, address indexed to, uint256 amount
+    );
 
     error OrderCannotBeFilled();
     error OrderExpired();
     error RestrictedToPrimaryFiller();
+    error InsufficientGasValue();
     error ExternalCallFailed();
 
     constructor(address _router) Ownable(msg.sender) OAppCore(_router, msg.sender) {
         executor = new Executor();
     }
 
-    function sweep(address to, address token) external onlyOwner {
-        IERC20 spuriousToken = IERC20(token);
-        uint256 amount = spuriousToken.balanceOf(address(this));
-        spuriousToken.safeTransfer(to, amount);
+    function sweep(Type tokenType, uint256 tokenId, address token, address to, uint256 amount) external onlyOwner {
+        _transfer(tokenType, address(this), to, token, tokenId, amount);
 
-        emit TokenSweep(to, token, amount);
+        emit TokenSweep(tokenType, tokenId, token, to, amount);
     }
 
     function estimateFee(uint32 dstEid, bytes memory payload, bytes calldata options) public view returns (uint256) {
@@ -52,23 +52,25 @@ contract OrderSpoke is Root, ReentrancyGuard, OAppSender {
         uint64 orderNonce,
         bytes32 fundingWallet,
         uint256 maxGas,
-        uint256 gasValue,
         bytes calldata options
     ) external payable returns (MessagingReceipt memory) {
+        if (msg.value <= order.callValue) revert InsufficientGasValue();
+
         bytes32 orderId = getOrderId(order, orderNonce);
 
         _validateOrder(order, orderId);
         _transferFunds(order, orderId);
 
         if (order.callData.length > 0) {
-            _callHook(order, maxGas, gasValue);
+            _callHook(order, maxGas);
         }
 
         ordersFilled[orderId] = true;
 
         bytes memory payload = abi.encode(order, orderNonce, fundingWallet);
-        MessagingReceipt memory receipt =
-            _lzSend(order.sourceChainEid, payload, options, MessagingFee(msg.value, 0), payable(msg.sender));
+        MessagingReceipt memory receipt = _lzSend(
+            order.sourceChainEid, payload, options, MessagingFee(msg.value - order.callValue, 0), payable(msg.sender)
+        );
 
         emit OrderFilled(orderId, order, msg.sender, receipt);
 
@@ -86,10 +88,10 @@ contract OrderSpoke is Root, ReentrancyGuard, OAppSender {
         }
     }
 
-    function _callHook(Order memory order, uint256 maxGas, uint256 gasValue) internal {
+    function _callHook(Order memory order, uint256 maxGas) internal {
         address callRecipient = BytesUtils.bytes32ToAddress(order.callRecipient);
         bool successful =
-            executor.exec{value: gasValue}(callRecipient, maxGas, gasValue, MAX_RETURNDATA_COPY_SIZE, order.callData);
+            executor.exec{value: order.callValue}(callRecipient, maxGas, order.callValue, MAX_RETURNDATA_COPY_SIZE, order.callData);
         if (!successful) revert ExternalCallFailed();
     }
 
@@ -99,15 +101,7 @@ contract OrderSpoke is Root, ReentrancyGuard, OAppSender {
             Token memory output = order.outputs[i];
 
             address tokenAddress = BytesUtils.bytes32ToAddress(output.tokenAddress);
-
-            if (output.tokenType == Type.ERC20) {
-                uint256 balance = IERC20(tokenAddress).balanceOf(address(this));
-                if (balance < output.amount) revert OrderCannotBeFilled();
-                _transfer(output.tokenType, address(this), to, tokenAddress, output.tokenId, balance);
-                if (balance > output.amount) emit PositiveSlippage(orderId, output.amount, balance);
-            } else {
-                _transfer(output.tokenType, address(this), to, tokenAddress, output.tokenId, output.amount);
-            }
+            _transfer(output.tokenType, address(this), to, tokenAddress, output.tokenId, output.amount);
         }
     }
 }
