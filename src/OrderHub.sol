@@ -157,12 +157,13 @@ contract OrderHub is Validator, ReentrancyGuard, OAppReceiver, IERC165, IERC721R
     }
 
     /// TODO should add retry logic?
-    function _lzReceive(Origin calldata, bytes32, bytes calldata payload, address, bytes calldata)
+    function _lzReceive(Origin calldata data, bytes32, bytes calldata payload, address, bytes calldata)
         internal
         override
         nonReentrant
     {
         (Order memory order, uint64 orderNonce, bytes32 fundingWallet) = abi.decode(payload, (Order, uint64, bytes32));
+        if (data.srcEid != order.destinationChainEid) revert InvalidSourceChain(); // this should never happen
 
         bytes32 orderId = getOrderId(order, orderNonce);
 
