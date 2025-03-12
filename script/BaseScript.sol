@@ -88,11 +88,11 @@ contract BaseScript is Script {
         });
     }
 
-    function buildSignature(Root.Order memory order) public view returns (bytes memory) {
-        bytes32 structHash = hub.hashOrder(order);
+    function buildSignature(Root.OrderRequest memory request, uint256 user_pk) public view returns (bytes memory) {
+        bytes32 structHash = hub.hashOrderRequest(request);
         bytes32 domainSeparator = hub.domainSeparator();
         bytes32 digest = keccak256(abi.encodePacked("\x19\x01", domainSeparator, structHash));
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(userPrivateKey, digest);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(user_pk, digest);
         return abi.encodePacked(r, s, v);
     }
 }

@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.24;
 
+import {BytesUtils} from "../src/libraries/BytesUtils.sol";
 import {Root} from "../src/Root.sol";
-import {Validator} from "../src/Validator.sol";
 import {OrderHub} from "../src/OrderHub.sol";
-import {BaseTest} from "./BaseTest.sol";
 import {MockERC721} from "./mocks/MockERC721.sol";
+import {BaseTest} from "./BaseTest.sol";
 
 event ERC721Received(address operator, address from, uint256 tokenId, bytes data);
 
@@ -27,8 +27,8 @@ contract OrderHubTest is BaseTest {
      * @param outputAmount The amount of output tokens.
      * @return order The built order.
      */
-    function testCreateOrder(uint256 inputAmount, uint256 outputAmount) public returns (Root.Order memory) {
-        Root.Order memory order = buildOrder(
+    function testCreateOrder(uint256 inputAmount, uint256 outputAmount) public returns (Root.OrderRequest memory) {
+        Root.OrderRequest memory orderRequest = buildOrderRequest(
             user0,
             address(this),
             address(inputToken),
@@ -38,16 +38,17 @@ contract OrderHubTest is BaseTest {
             1 minutes,
             5 minutes
         );
-        bytes memory signature = buildSignature(order, user0_pk);
+        bytes memory signature = buildSignature(orderRequest, user0_pk);
         address hubAddr = address(hub);
         assertEq(inputToken.balanceOf(hubAddr), 0);
         inputToken.mint(user0, inputAmount);
         vm.prank(user0);
         inputToken.approve(address(hub), inputAmount);
         vm.prank(user0);
-        hub.createOrder(buildOrderRequest(order, 1), permits, signature);
+        hub.createOrder(orderRequest, permits, signature);
         assertEq(inputToken.balanceOf(hubAddr), inputAmount);
-        return order;
+
+        return orderRequest;
     }
 
     /**
@@ -55,11 +56,11 @@ contract OrderHubTest is BaseTest {
      */
     function testCreateOrderWithPermit() public {
         uint256 inputAmount = 1e18;
-        Root.Order memory order = buildOrder(
+        Root.OrderRequest memory orderRequest = buildOrderRequest(
             user0, address(this), address(inputToken), inputAmount, address(outputToken), 1, 1 minutes, 5 minutes
         );
-        bytes memory signature = buildSignature(order, user0_pk);
-        assertTrue(hub.validateOrder(order, signature), "Invalid signature");
+        bytes memory signature = buildSignature(orderRequest, user0_pk);
+        assertTrue(hub.validateOrderRequest(orderRequest, signature), "Invalid signature");
 
         uint256 nonce = inputToken.nonces(user0);
         uint256 deadline = block.timestamp + 1 hours;
@@ -76,7 +77,7 @@ contract OrderHubTest is BaseTest {
         permitsArray[0] = permit;
 
         inputToken.mint(user0, inputAmount);
-        hub.createOrder(buildOrderRequest(order, 1), permitsArray, signature);
+        hub.createOrder(orderRequest, permitsArray, signature);
         assertEq(inputToken.balanceOf(address(hub)), inputAmount);
     }
 
@@ -88,7 +89,7 @@ contract OrderHubTest is BaseTest {
         uint256 outputAmount = 1;
         MockERC721 outputToken = inputERC721Token;
 
-        Root.Order memory order = buildOrder(
+        Root.OrderRequest memory orderRequest = buildOrderRequest(
             user0,
             address(this),
             address(inputToken),
@@ -98,14 +99,14 @@ contract OrderHubTest is BaseTest {
             1 minutes,
             5 minutes
         );
-        bytes memory signature = buildSignature(order, user0_pk);
+        bytes memory signature = buildSignature(orderRequest, user0_pk);
         address hubAddr = address(hub);
         assertEq(inputToken.balanceOf(hubAddr), 0);
         inputToken.mint(user0, inputAmount);
         vm.prank(user0);
         inputToken.approve(address(hub), inputAmount);
         vm.prank(user0);
-        hub.createOrder(buildOrderRequest(order, 1), permits, signature);
+        hub.createOrder(orderRequest, permits, signature);
         assertEq(inputToken.balanceOf(hubAddr), inputAmount);
     }
 
@@ -114,24 +115,24 @@ contract OrderHubTest is BaseTest {
      */
     function testOrderWithdrawal() public {
         uint256 inputAmount = 1e18;
-        Root.Order memory order = testCreateOrder(inputAmount, 1);
+        Root.OrderRequest memory orderRequest = testCreateOrder(inputAmount, 1);
 
         vm.warp(block.timestamp + 1 minutes);
         vm.startPrank(user0);
         vm.expectRevert();
-        hub.withdrawOrder(order, 1);
+        hub.withdrawOrder(orderRequest.order, 1);
         vm.stopPrank();
 
         vm.warp(block.timestamp + 5 minutes);
         vm.startPrank(user1);
         vm.expectRevert();
-        hub.withdrawOrder(order, 1);
+        hub.withdrawOrder(orderRequest.order, 1);
         vm.stopPrank();
 
         assertEq(inputToken.balanceOf(address(hub)), inputAmount);
 
         vm.prank(user0);
-        hub.withdrawOrder(order, 1);
+        hub.withdrawOrder(orderRequest.order, 1);
         assertEq(inputToken.balanceOf(address(hub)), 0);
         assertEq(inputToken.balanceOf(user0), inputAmount);
     }
@@ -141,15 +142,15 @@ contract OrderHubTest is BaseTest {
      */
     function testDoubleWithdrawal() public {
         uint256 inputAmount = 1e18;
-        Root.Order memory order = testCreateOrder(inputAmount, 1);
+        Root.OrderRequest memory orderRequest = testCreateOrder(inputAmount, 1);
         vm.warp(block.timestamp + 5 minutes);
 
         vm.prank(user0);
-        hub.withdrawOrder(order, 1);
+        hub.withdrawOrder(orderRequest.order, 1);
 
         vm.startPrank(user0);
         vm.expectRevert();
-        hub.withdrawOrder(order, 1);
+        hub.withdrawOrder(orderRequest.order, 1);
         vm.stopPrank();
     }
 
@@ -158,10 +159,10 @@ contract OrderHubTest is BaseTest {
      */
     function testCreateOrderInsufficientAllowance() public {
         uint256 inputAmount = 1e18;
-        Root.Order memory order = buildOrder(
+        Root.OrderRequest memory orderRequest = buildOrderRequest(
             user0, address(this), address(inputToken), inputAmount, address(outputToken), 1, 1 minutes, 5 minutes
         );
-        bytes memory signature = buildSignature(order, user0_pk);
+        bytes memory signature = buildSignature(orderRequest, user0_pk);
 
         inputToken.mint(user0, inputAmount);
         vm.prank(user0);
@@ -169,7 +170,7 @@ contract OrderHubTest is BaseTest {
 
         vm.prank(user0);
         vm.expectRevert();
-        hub.createOrder(buildOrderRequest(order, 1), permits, signature);
+        hub.createOrder(orderRequest, permits, signature);
     }
 
     /**
@@ -177,19 +178,19 @@ contract OrderHubTest is BaseTest {
      */
     function testInvalidOrderSignature() public {
         uint256 inputAmount = 1e18;
-        Root.Order memory order = buildOrder(
+        Root.OrderRequest memory orderRequest = buildOrderRequest(
             user0, address(this), address(inputToken), inputAmount, address(outputToken), 1, 1 minutes, 5 minutes
         );
-        bytes memory signature = buildSignature(order, user0_pk);
+        bytes memory signature = buildSignature(orderRequest, user0_pk);
 
-        order.deadline += 1;
+        orderRequest.deadline += 1;
 
         vm.startPrank(user0);
         inputToken.mint(user0, inputAmount);
         inputToken.approve(address(hub), inputAmount);
         vm.expectRevert();
         bytes[] memory emptyPermits = new bytes[](1);
-        hub.createOrder(buildOrderRequest(order, 1), emptyPermits, signature);
+        hub.createOrder(orderRequest, emptyPermits, signature);
         vm.stopPrank();
     }
 
@@ -198,16 +199,16 @@ contract OrderHubTest is BaseTest {
      */
     function testOrderDeadlineMismatch() public {
         uint256 inputAmount = 1e18;
-        Root.Order memory order = buildOrder(
+        Root.OrderRequest memory orderRequest = buildOrderRequest(
             user0, address(this), address(inputToken), inputAmount, address(outputToken), 1, 6 minutes, 5 minutes
         );
-        bytes memory signature = buildSignature(order, user0_pk);
+        bytes memory signature = buildSignature(orderRequest, user0_pk);
 
         vm.startPrank(user0);
         inputToken.mint(user0, inputAmount);
         inputToken.approve(address(hub), inputAmount);
         vm.expectRevert();
-        hub.createOrder(buildOrderRequest(order, 1), permits, signature);
+        hub.createOrder(orderRequest, permits, signature);
         vm.stopPrank();
     }
 
@@ -216,17 +217,17 @@ contract OrderHubTest is BaseTest {
      */
     function testOrderExpired() public {
         uint256 inputAmount = 1e18;
-        Root.Order memory order = buildOrder(
+        Root.OrderRequest memory orderRequest = buildOrderRequest(
             user0, address(this), address(inputToken), inputAmount, address(outputToken), 1, 1 minutes, 5 minutes
         );
-        bytes memory signature = buildSignature(order, user0_pk);
+        bytes memory signature = buildSignature(orderRequest, user0_pk);
 
         vm.warp(block.timestamp + 6 minutes);
         vm.startPrank(user0);
         inputToken.mint(user0, inputAmount);
         inputToken.approve(address(hub), inputAmount);
         vm.expectRevert();
-        hub.createOrder(buildOrderRequest(order, 1), permits, signature);
+        hub.createOrder(orderRequest, permits, signature);
         vm.stopPrank();
     }
 
@@ -235,10 +236,10 @@ contract OrderHubTest is BaseTest {
      */
     function testCreateOrderInsufficientBalance() public {
         uint256 inputAmount = 1e18;
-        Root.Order memory order = buildOrder(
+        Root.OrderRequest memory orderRequest = buildOrderRequest(
             user0, address(this), address(inputToken), inputAmount, address(outputToken), 1, 1 minutes, 5 minutes
         );
-        bytes memory signature = buildSignature(order, user0_pk);
+        bytes memory signature = buildSignature(orderRequest, user0_pk);
 
         inputToken.mint(user0, inputAmount - 1);
         vm.prank(user0);
@@ -246,7 +247,7 @@ contract OrderHubTest is BaseTest {
 
         vm.prank(user0);
         vm.expectRevert();
-        hub.createOrder(buildOrderRequest(order, 1), permits, signature);
+        hub.createOrder(orderRequest, permits, signature);
     }
 
     /**
@@ -254,13 +255,13 @@ contract OrderHubTest is BaseTest {
      */
     function testWithdrawNonExistentOrder() public {
         uint256 inputAmount = 1e18;
-        Root.Order memory order = buildOrder(
+        Root.OrderRequest memory orderRequest = buildOrderRequest(
             user0, address(this), address(inputToken), inputAmount, address(outputToken), 1, 1 minutes, 5 minutes
         );
 
         vm.prank(user0);
         vm.expectRevert();
-        hub.withdrawOrder(order, 1);
+        hub.withdrawOrder(orderRequest.order, 1);
     }
 
     /**
@@ -271,25 +272,32 @@ contract OrderHubTest is BaseTest {
         vm.assume(inputAmount1 > 0);
         vm.assume(inputAmount2 > 0);
 
-        Root.Order memory order1 = buildOrder(
+        Root.OrderRequest memory orderRequest1 = buildOrderRequest(
             user0, address(this), address(inputToken), inputAmount1, address(outputToken), 1, 1 minutes, 5 minutes
         );
-        bytes memory signature1 = buildSignature(order1, user0_pk);
+        bytes memory signature1 = buildSignature(orderRequest1, user0_pk);
 
-        Root.Order memory order2 = buildOrder(
+        Root.OrderRequest memory orderRequest2 = buildOrderRequest(
             user0, address(this), address(inputToken), inputAmount2, address(outputToken), 2, 1 minutes, 5 minutes
         );
-        bytes memory signature2 = buildSignature(order2, user0_pk);
+        orderRequest2.nonce = orderRequest1.nonce;
+        bytes memory signature2 = buildSignature(orderRequest2, user0_pk);
 
         inputToken.mint(user0, inputAmount1 + inputAmount2);
         vm.prank(user0);
         inputToken.approve(address(hub), inputAmount1 + inputAmount2);
 
         vm.startPrank(user0);
-        hub.createOrder(buildOrderRequest(order1, 1), permits, signature1);
+        hub.createOrder(orderRequest1, permits, signature1);
+
+        // revert same nonce reused
         vm.expectRevert();
-        hub.createOrder(buildOrderRequest(order2, 1), permits, signature2);
-        hub.createOrder(buildOrderRequest(order2, 2), permits, signature2);
+        hub.createOrder(orderRequest2, permits, signature2);
+
+        // recreate signature
+        orderRequest2.nonce = 2;
+        signature2 = buildSignature(orderRequest2, user0_pk);
+        hub.createOrder(orderRequest2, permits, signature2);
         vm.stopPrank();
 
         assertEq(inputToken.balanceOf(address(hub)), inputAmount1 + inputAmount2);
@@ -303,26 +311,26 @@ contract OrderHubTest is BaseTest {
         vm.assume(inputAmount1 > 0);
         vm.assume(inputAmount2 > 0);
 
-        Root.Order memory order1 = buildOrder(
+        Root.OrderRequest memory orderRequest1 = buildOrderRequest(
             user1, address(this), address(inputToken), inputAmount1, address(outputToken), 1, 1 minutes, 5 minutes
         );
-        bytes memory signature1 = buildSignature(order1, user1_pk);
+        bytes memory signature1 = buildSignature(orderRequest1, user1_pk);
 
-        Root.Order memory order2 = buildOrder(
+        Root.OrderRequest memory orderRequest2 = buildOrderRequest(
             user2, address(this), address(inputToken), inputAmount2, address(outputToken), 1, 1 minutes, 5 minutes
         );
-        bytes memory signature2 = buildSignature(order2, user2_pk);
+        bytes memory signature2 = buildSignature(orderRequest2, user2_pk);
 
         vm.startPrank(user1);
         inputToken.mint(user1, inputAmount1);
         inputToken.approve(address(hub), inputAmount1);
-        hub.createOrder(buildOrderRequest(order1, 1), permits, signature1);
+        hub.createOrder(orderRequest1, permits, signature1);
         vm.stopPrank();
 
         vm.startPrank(user2);
         inputToken.mint(user2, inputAmount2);
         inputToken.approve(address(hub), inputAmount2);
-        hub.createOrder(buildOrderRequest(order2, 1), permits, signature2);
+        hub.createOrder(orderRequest2, permits, signature2);
         vm.stopPrank();
 
         assertEq(inputToken.balanceOf(address(hub)), inputAmount1 + inputAmount2);
@@ -334,12 +342,12 @@ contract OrderHubTest is BaseTest {
     function testCreateOrderWithInvalidTokens() public {
         uint256 inputAmount = 1e18;
         uint256 outputAmount = 1e18;
-        Validator.Order memory order = buildOrder(
+        Root.OrderRequest memory orderRequest = buildOrderRequest(
             user1, address(this), address(0), inputAmount, address(outputToken), outputAmount, 1 minutes, 5 minutes
         );
-        bytes memory signature = buildSignature(order, user1_pk);
+        bytes memory signature = buildSignature(orderRequest, user1_pk);
         vm.expectRevert();
-        hub.createOrder(buildOrderRequest(order, 1), permits, signature);
+        hub.createOrder(orderRequest, permits, signature);
     }
 
     /**
@@ -347,7 +355,7 @@ contract OrderHubTest is BaseTest {
      */
     function testCreateOrderSmartContract(uint256 inputAmount) public {
         vm.assume(inputAmount > 0);
-        Validator.Order memory order = buildOrder(
+        Root.OrderRequest memory orderRequest = buildOrderRequest(
             address(contractUser),
             address(this),
             address(inputToken),
@@ -363,7 +371,7 @@ contract OrderHubTest is BaseTest {
         vm.prank(address(contractUser));
         inputToken.approve(address(hub), inputAmount);
 
-        contractUser.createOrder(hub, order, permits, signature);
+        contractUser.createOrder(hub, orderRequest, permits, signature);
         assertEq(inputToken.balanceOf(address(hub)), inputAmount);
     }
 
@@ -372,32 +380,36 @@ contract OrderHubTest is BaseTest {
      */
     function testWithdrawMultipleIdenticalOrders() public {
         uint256 inputAmount = 1e18;
-        Validator.Order memory order = buildOrder(
+        Root.OrderRequest memory orderRequest = buildOrderRequest(
             user0, address(this), address(inputToken), inputAmount, address(outputToken), 1, 1 minutes, 5 minutes
         );
 
         inputToken.mint(user0, inputAmount * 2);
         vm.prank(user0);
         inputToken.approve(address(hub), inputAmount * 2);
-        bytes memory signature = buildSignature(order, user0_pk);
+        bytes memory signature = buildSignature(orderRequest, user0_pk);
 
         vm.prank(user0);
-        (bytes32 orderId1,) = hub.createOrder(buildOrderRequest(order, 1), permits, signature);
+        (bytes32 orderId1,) = hub.createOrder(orderRequest, permits, signature);
         assertEq(inputToken.balanceOf(address(hub)), inputAmount);
+
+        orderRequest.nonce = 2;
+        signature = buildSignature(orderRequest, user0_pk);
+
         vm.prank(user0);
-        (bytes32 orderId2, uint64 nonce) = hub.createOrder(buildOrderRequest(order, 2), permits, signature);
+        (bytes32 orderId2, uint64 nonce) = hub.createOrder(orderRequest, permits, signature);
         assertEq(inputToken.balanceOf(address(hub)), inputAmount * 2);
         assertNotEq(orderId1, orderId2);
         vm.warp(block.timestamp + 10 minutes);
 
         vm.prank(user0);
-        hub.withdrawOrder(order, nonce);
+        hub.withdrawOrder(orderRequest.order, nonce);
         assertEq(inputToken.balanceOf(address(hub)), inputAmount);
         assertEq(inputToken.balanceOf(user0), inputAmount);
 
         vm.prank(user0);
         vm.expectRevert();
-        hub.withdrawOrder(order, nonce);
+        hub.withdrawOrder(orderRequest.order, nonce);
         assertEq(inputToken.balanceOf(address(hub)), inputAmount);
         assertEq(inputToken.balanceOf(user0), inputAmount);
     }
@@ -411,7 +423,7 @@ contract OrderHubTest is BaseTest {
 
         uint256 inputAmount = 1e18;
         uint256 outputAmount = 2e18;
-        Validator.Order memory order = buildOrder(
+        Root.OrderRequest memory orderRequest = buildOrderRequest(
             user1,
             address(this),
             address(inputToken),
@@ -421,13 +433,13 @@ contract OrderHubTest is BaseTest {
             1 minutes,
             1 weeks
         );
-        bytes memory signature = buildSignature(order, user0_pk);
+        bytes memory signature = buildSignature(orderRequest, user0_pk);
 
         vm.startPrank(user1);
         inputToken.mint(user1, inputAmount);
         inputToken.approve(address(hub), inputAmount);
         vm.expectRevert();
-        hub.createOrder(buildOrderRequest(order, 1), permits, signature);
+        hub.createOrder(orderRequest, permits, signature);
         vm.stopPrank();
     }
 
@@ -440,26 +452,26 @@ contract OrderHubTest is BaseTest {
 
         uint256 inputAmount = 1e18;
         uint256 outputAmount = 2e18;
-        Validator.Order memory order = buildOrder(
+        Root.OrderRequest memory orderRequest = buildOrderRequest(
             user0, user1, address(inputToken), inputAmount, address(outputToken), outputAmount, 1 minutes, 5 minutes
         );
-        bytes memory signature = buildSignature(order, user0_pk);
+        bytes memory signature = buildSignature(orderRequest, user0_pk);
 
         vm.startPrank(user0);
         inputToken.mint(user0, inputAmount);
         inputToken.approve(address(hub), inputAmount);
-        (, uint64 nonce) = hub.createOrder(buildOrderRequest(order, 1), permits, signature);
+        (, uint64 nonce) = hub.createOrder(orderRequest, permits, signature);
 
         vm.warp(block.timestamp + 4 minutes);
         vm.expectRevert();
-        hub.withdrawOrder(order, nonce);
+        hub.withdrawOrder(orderRequest.order, nonce);
 
         vm.warp(block.timestamp + 2 minutes);
         vm.expectRevert();
-        hub.withdrawOrder(order, nonce);
+        hub.withdrawOrder(orderRequest.order, nonce);
 
         vm.warp(block.timestamp + 1 hours);
-        hub.withdrawOrder(order, nonce);
+        hub.withdrawOrder(orderRequest.order, nonce);
         vm.stopPrank();
 
         assertEq(inputToken.balanceOf(user0), inputAmount);
@@ -470,16 +482,17 @@ contract OrderHubTest is BaseTest {
      */
     function testIncorrectEidRevert() public {
         uint256 inputAmount = 1e18;
-        Validator.Order memory order =
-            buildOrder(user0, user1, address(inputToken), inputAmount, address(outputToken), 0, 1 minutes, 5 minutes);
-        order.sourceChainEid = 2;
-        bytes memory signature = buildSignature(order, user0_pk);
+        Root.OrderRequest memory orderRequest = buildOrderRequest(
+            user0, user1, address(inputToken), inputAmount, address(outputToken), 0, 1 minutes, 5 minutes
+        );
+        orderRequest.order.sourceChainEid = 2;
+        bytes memory signature = buildSignature(orderRequest, user0_pk);
 
         vm.startPrank(user0);
         inputToken.mint(user0, inputAmount);
         inputToken.approve(address(hub), inputAmount);
         vm.expectRevert();
-        hub.createOrder(buildOrderRequest(order, 1), permits, signature);
+        hub.createOrder(orderRequest, permits, signature);
         vm.stopPrank();
     }
 
@@ -502,20 +515,20 @@ contract OrderHubTest is BaseTest {
      */
     function testReplyAttack() public {
         uint256 inputAmount = 1 ether;
-        Validator.Order memory order = buildOrder(
+        Root.OrderRequest memory orderRequest = buildOrderRequest(
             user0, address(this), address(inputToken), inputAmount, address(outputToken), 1, 1 minutes, 5 minutes
         );
-        bytes memory signature = buildSignature(order, user0_pk);
+        bytes memory signature = buildSignature(orderRequest, user0_pk);
 
         inputToken.mint(user0, 10 * inputAmount);
         vm.prank(user0);
         inputToken.approve(address(hub), 10 * inputAmount);
 
-        hub.createOrder(buildOrderRequest(order, 1), permits, signature);
+        hub.createOrder(orderRequest, permits, signature);
         assertEq(inputToken.balanceOf(address(hub)), inputAmount);
 
         vm.expectRevert();
-        hub.createOrder(buildOrderRequest(order, 1), permits, signature);
+        hub.createOrder(orderRequest, permits, signature);
         assertEq(inputToken.balanceOf(address(hub)), inputAmount);
     }
 
@@ -523,10 +536,16 @@ contract OrderHubTest is BaseTest {
      * @notice Test creation of an order with an ERC721 token.
      */
     function testCreateERC721Order() public {
-        Validator.Order memory order = buildERC721Order(
-            user0, address(this), address(inputERC721Token), 1, 1, address(outputToken), 1, 1 minutes, 5 minutes
+        Root.OrderRequest memory orderRequest = buildERC721OrderRequest(
+            BytesUtils.addressToBytes32(user0),
+            BytesUtils.addressToBytes32(address(this)),
+            address(inputERC721Token),
+            1,
+            1,
+            address(outputToken),
+            1
         );
-        bytes memory signature = buildSignature(order, user0_pk);
+        bytes memory signature = buildSignature(orderRequest, user0_pk);
 
         vm.prank(user0);
         inputERC721Token.mint(user0);
@@ -540,7 +559,7 @@ contract OrderHubTest is BaseTest {
         vm.prank(user0);
         vm.expectEmit(true, true, true, true);
         emit ERC721Received(address(hub), user0, 1, "");
-        hub.createOrder(buildOrderRequest(order, 1), permits, signature);
+        hub.createOrder(orderRequest, permits, signature);
 
         assertEq(inputERC721Token.balanceOf(user0), 0);
         assertEq(inputERC721Token.balanceOf(address(hub)), 1);
@@ -553,10 +572,16 @@ contract OrderHubTest is BaseTest {
         uint256[] memory ids = new uint256[](1);
         ids[0] = 1;
 
-        Validator.Order memory order = buildERC1155Order(
-            user0, address(this), address(inputERC1155Token), ids, 2, address(outputToken), 1, 1 minutes, 5 minutes
+        Root.OrderRequest memory orderRequest = buildERC1155OrderRequest(
+            BytesUtils.addressToBytes32(user0),
+            BytesUtils.addressToBytes32(address(this)),
+            address(inputERC1155Token),
+            ids,
+            2,
+            address(outputToken),
+            1
         );
-        bytes memory signature = buildSignature(order, user0_pk);
+        bytes memory signature = buildSignature(orderRequest, user0_pk);
 
         vm.prank(user0);
         inputERC1155Token.mint(user0, 1, 2, "");
@@ -570,7 +595,7 @@ contract OrderHubTest is BaseTest {
         vm.prank(user0);
         vm.expectEmit(true, true, true, true);
         emit ERC1155Received(address(hub), user0, 1, 2, "");
-        hub.createOrder(buildOrderRequest(order, 1), permits, signature);
+        hub.createOrder(orderRequest, permits, signature);
 
         assertEq(inputERC1155Token.balanceOf(user0, 1), 0);
         assertEq(inputERC1155Token.balanceOf(address(hub), 1), 2);
@@ -589,17 +614,18 @@ contract OrderHubTest is BaseTest {
         Root.Token[] memory outputs = new Root.Token[](1);
         outputs[0] = Root.Token({tokenType: Root.Type.ERC20, tokenAddress: "", tokenId: 0, amount: 0});
 
-        Root.Order memory order = buildOrderBase(inputs, outputs, user0, user1, 1 minutes, 5 minutes, "", "", 0);
+        Root.OrderRequest memory orderRequest =
+            buildBaseOrderRequest(inputs, outputs, user0, user1, 1 minutes, 5 minutes, "", "", 0);
 
-        bytes memory signature = buildSignature(order, user0_pk);
+        bytes memory signature = buildSignature(orderRequest, user0_pk);
 
         vm.expectRevert();
-        hub.createOrder(buildOrderRequest(order, 1), permits, signature);
+        hub.createOrder(orderRequest, permits, signature);
 
         vm.prank(user0);
         uint256 initialBalance = user0.balance;
         assertEq(address(hub).balance, 0);
-        hub.createOrder{value: inputAmount}(buildOrderRequest(order, 1), permits, signature);
+        hub.createOrder{value: inputAmount}(orderRequest, permits, signature);
         assertEq(address(hub).balance, inputAmount);
         assertEq(user0.balance, initialBalance - inputAmount);
         vm.stopPrank();
@@ -608,7 +634,7 @@ contract OrderHubTest is BaseTest {
 
         vm.prank(user0);
         initialBalance = user0.balance;
-        hub.withdrawOrder(order, 1);
+        hub.withdrawOrder(orderRequest.order, 1);
         assertEq(address(hub).balance, 0);
         assertEq(user0.balance, initialBalance + inputAmount);
     }

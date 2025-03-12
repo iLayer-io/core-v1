@@ -11,12 +11,6 @@ import {BytesUtils} from "../../src/libraries/BytesUtils.sol";
 import {Validator} from "../../src/Validator.sol";
 
 contract OrderHubMock is Validator, ReentrancyGuard, Ownable, IERC165, IERC721Receiver, IERC1155Receiver {
-    struct OrderRequest {
-        uint64 deadline;
-        uint64 nonce;
-        Order order;
-    }
-
     mapping(bytes32 orderId => Status status) public orders;
     mapping(address user => mapping(uint64 nonce => bool used)) public requestNonces;
     uint64 public maxOrderDeadline;
@@ -73,7 +67,7 @@ contract OrderHubMock is Validator, ReentrancyGuard, Ownable, IERC165, IERC721Re
         if (block.timestamp > request.deadline) revert RequestExpired();
 
         // validate order
-        _checkOrderValidity(order, permits, signature);
+        _checkOrderValidity(order, permits);
 
         requestNonces[user][request.nonce] = true; // mark the nonce as used
         uint64 orderNonce = ++nonce; // increment the nonce to guarantee order uniqueness
@@ -170,10 +164,9 @@ contract OrderHubMock is Validator, ReentrancyGuard, Ownable, IERC165, IERC721Re
         emit OrderSettled(orderId, order);
     }
 
-    function _checkOrderValidity(Order memory order, bytes[] memory permits, bytes memory signature) internal view {
+    function _checkOrderValidity(Order memory order, bytes[] memory permits) internal view {
         if (order.inputs.length != permits.length) revert InvalidOrderInputApprovals();
         if (order.deadline > block.timestamp + maxOrderDeadline) revert InvalidDeadline();
-        if (!validateOrder(order, signature)) revert InvalidOrderSignature();
         if (order.primaryFillerDeadline > order.deadline) revert OrderDeadlinesMismatch();
         if (block.timestamp >= order.deadline) revert OrderExpired();
         if (block.timestamp >= order.primaryFillerDeadline) revert OrderPrimaryFillerExpired();
