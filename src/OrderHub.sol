@@ -40,6 +40,7 @@ contract OrderHub is Validator, ReentrancyGuard, OAppReceiver, IERC165, IERC721R
 
     error RequestNonceReused();
     error RequestExpired();
+    error InvalidDestinationEndpoint();
     error InvalidOrderInputApprovals();
     error InvalidOrderSignature();
     error InvalidDeadline();
@@ -186,6 +187,9 @@ contract OrderHub is Validator, ReentrancyGuard, OAppReceiver, IERC165, IERC721R
     }
 
     function _checkOrderValidity(Order memory order, bytes[] memory permits, bytes memory signature) internal view {
+        if (peers[order.destinationChainEid] == bytes32(0) || order.sourceChainEid == order.destinationChainEid) {
+            revert InvalidDestinationEndpoint();
+        }
         if (order.inputs.length != permits.length) revert InvalidOrderInputApprovals();
         if (order.deadline > block.timestamp + maxOrderDeadline) revert InvalidDeadline();
         if (!validateOrder(order, signature)) revert InvalidOrderSignature();
