@@ -22,6 +22,7 @@ contract Validator is Root, EIP712 {
             "uint64 deadline,",
             "bytes32 callRecipient,",
             "bytes callData",
+            "uint256 callValue",
             ")"
         )
     );
@@ -61,6 +62,7 @@ contract Validator is Root, EIP712 {
                 order.sponsored, // bool sponsored
                 order.deadline, // uint64 deadline
                 order.callRecipient, // bytes32 callRecipient
+                order.callValue, // uint256 callValue
                 keccak256(order.callData) // hashed bytes callData
             )
         );
