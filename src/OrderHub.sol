@@ -17,12 +17,6 @@ import {Validator} from "./Validator.sol";
  * @custom:security-contact security@ilayer.io
  */
 contract OrderHub is Validator, ReentrancyGuard, OAppReceiver, IERC165, IERC721Receiver, IERC1155Receiver {
-    struct OrderRequest {
-        uint64 deadline;
-        uint64 nonce;
-        Order order;
-    }
-
     mapping(bytes32 orderId => Status status) public orders;
     mapping(address user => mapping(uint64 nonce => bool used)) public requestNonces;
     uint64 public maxOrderDeadline;
@@ -82,9 +76,10 @@ contract OrderHub is Validator, ReentrancyGuard, OAppReceiver, IERC165, IERC721R
         // validate order request
         if (requestNonces[user][request.nonce]) revert RequestNonceReused();
         if (block.timestamp > request.deadline) revert RequestExpired();
+        if (!validateOrderRequest(request, signature)) revert InvalidOrderSignature();
 
         // validate order
-        _checkOrderValidity(order, permits, signature);
+        _checkOrderValidity(order, permits);
 
         requestNonces[user][request.nonce] = true; // mark the nonce as used
         uint64 orderNonce = ++nonce; // increment the nonce to guarantee order uniqueness
@@ -186,13 +181,12 @@ contract OrderHub is Validator, ReentrancyGuard, OAppReceiver, IERC165, IERC721R
         emit OrderSettled(orderId, order);
     }
 
-    function _checkOrderValidity(Order memory order, bytes[] memory permits, bytes memory signature) internal view {
+    function _checkOrderValidity(Order memory order, bytes[] memory permits) internal view {
         if (peers[order.destinationChainEid] == bytes32(0) || order.sourceChainEid == order.destinationChainEid) {
             revert InvalidDestinationEndpoint();
         }
         if (order.inputs.length != permits.length) revert InvalidOrderInputApprovals();
         if (order.deadline > block.timestamp + maxOrderDeadline) revert InvalidDeadline();
-        if (!validateOrder(order, signature)) revert InvalidOrderSignature();
         if (order.primaryFillerDeadline > order.deadline) revert OrderDeadlinesMismatch();
         if (block.timestamp >= order.deadline) revert OrderExpired();
         if (block.timestamp >= order.primaryFillerDeadline) revert OrderPrimaryFillerExpired();

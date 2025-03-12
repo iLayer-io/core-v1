@@ -45,6 +45,12 @@ contract Root {
         uint256 callValue;
     }
 
+    struct OrderRequest {
+        uint64 deadline;
+        uint64 nonce;
+        Order order;
+    }
+
     error NativeTransferFailed();
     error UnsupportedTransfer();
 

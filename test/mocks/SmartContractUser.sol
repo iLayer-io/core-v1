@@ -3,6 +3,7 @@ pragma solidity ^0.8.24;
 
 import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import {Root} from "../../src/Validator.sol";
 import {Validator} from "../../src/Validator.sol";
 import {OrderHub} from "../../src/OrderHub.sol";
 
@@ -13,12 +14,10 @@ contract SmartContractUser {
 
     function createOrder(
         OrderHub orderhub,
-        Validator.Order memory order,
+        Root.OrderRequest memory request,
         bytes[] memory permits,
         bytes memory signature
     ) external {
-        OrderHub.OrderRequest memory request =
-            OrderHub.OrderRequest({order: order, deadline: uint64(block.timestamp + 1 days), nonce: 1});
         orderhub.createOrder(request, permits, signature);
     }
 

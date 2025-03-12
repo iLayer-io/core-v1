@@ -51,17 +51,17 @@ contract OrderSpokeTest is BaseTest {
     function testFillOrder(uint256 inputAmount, uint256 outputAmount) public {
         address filler = user1;
 
-        Root.Order memory order = buildOrder(
+        Root.OrderRequest memory orderRequest = buildOrderRequest(
             user0, filler, address(inputToken), inputAmount, address(outputToken), outputAmount, 1 minutes, 5 minutes
         );
 
-        bytes memory signature = buildSignature(order, user0_pk);
+        bytes memory signature = buildSignature(orderRequest, user0_pk);
 
         inputToken.mint(user0, inputAmount);
 
         vm.startPrank(user0);
         inputToken.approve(address(hub), inputAmount);
-        (, uint64 nonce) = hub.createOrder(buildOrderRequest(order, 1), permits, signature);
+        (, uint64 nonce) = hub.createOrder(orderRequest, permits, signature);
         vm.stopPrank();
 
         assertEq(inputToken.balanceOf(address(hub)), inputAmount, "Input token not transferred to Hub");
@@ -70,7 +70,7 @@ contract OrderSpokeTest is BaseTest {
         outputToken.mint(filler, outputAmount);
         outputToken.transfer(address(spoke), outputAmount);
 
-        MessagingReceipt memory receipt = fillOrder(order, nonce, 0, filler);
+        MessagingReceipt memory receipt = fillOrder(orderRequest.order, nonce, 0, filler);
         validateOrderWasFilled(user0, filler, inputAmount, outputAmount);
         vm.stopPrank();
 
@@ -86,17 +86,17 @@ contract OrderSpokeTest is BaseTest {
         MockERC721 outputToken = inputERC721Token;
         uint256 outputAmount = 1;
 
-        Root.Order memory order = buildOrder(
+        Root.OrderRequest memory orderRequest = buildOrderRequest(
             user0, filler, address(inputToken), inputAmount, address(outputToken), outputAmount, 1 minutes, 5 minutes
         );
 
-        bytes memory signature = buildSignature(order, user0_pk);
+        bytes memory signature = buildSignature(orderRequest, user0_pk);
 
         inputToken.mint(user0, inputAmount);
 
         vm.startPrank(user0);
         inputToken.approve(address(hub), inputAmount);
-        (, uint64 nonce) = hub.createOrder(buildOrderRequest(order, 1), permits, signature);
+        (, uint64 nonce) = hub.createOrder(orderRequest, permits, signature);
         vm.stopPrank();
 
         assertEq(inputToken.balanceOf(address(hub)), inputAmount, "Input token not transferred to Hub");
@@ -108,7 +108,7 @@ contract OrderSpokeTest is BaseTest {
         assertEq(outputToken.balanceOf(address(spoke)), 1);
         assertEq(outputToken.balanceOf(user0), 0);
 
-        fillOrder(order, nonce, 0, filler);
+        fillOrder(orderRequest.order, nonce, 0, filler);
 
         assertEq(outputToken.balanceOf(filler), 0);
         assertEq(outputToken.balanceOf(address(spoke)), 0);
@@ -126,17 +126,17 @@ contract OrderSpokeTest is BaseTest {
         address filler = user1;
         address invalidFiller = user2;
 
-        Root.Order memory order = buildOrder(
+        Root.OrderRequest memory orderRequest = buildOrderRequest(
             user0, filler, address(inputToken), inputAmount, address(outputToken), outputAmount, 1 minutes, 5 minutes
         );
 
-        bytes memory signature = buildSignature(order, user0_pk);
+        bytes memory signature = buildSignature(orderRequest, user0_pk);
 
         inputToken.mint(user0, inputAmount);
 
         vm.startPrank(user0);
         inputToken.approve(address(hub), inputAmount);
-        (, uint64 nonce) = hub.createOrder(buildOrderRequest(order, 1), permits, signature);
+        (, uint64 nonce) = hub.createOrder(orderRequest, permits, signature);
         vm.stopPrank();
 
         assertEq(inputToken.balanceOf(address(hub)), inputAmount, "Input token not transferred to Hub");
@@ -148,7 +148,7 @@ contract OrderSpokeTest is BaseTest {
 
         vm.expectRevert();
         vm.expectRevert(RestrictedToPrimaryFiller.selector);
-        fillOrder(order, nonce, 0, invalidFiller);
+        fillOrder(orderRequest.order, nonce, 0, invalidFiller);
         vm.stopPrank();
     }
 
@@ -161,17 +161,17 @@ contract OrderSpokeTest is BaseTest {
         uint256 outputAmount = 2 * 1e18;
         address filler = user1;
 
-        Root.Order memory order = buildOrder(
+        Root.OrderRequest memory orderRequest = buildOrderRequest(
             user0, filler, address(inputToken), inputAmount, address(outputToken), outputAmount, 1 minutes, 5 minutes
         );
 
-        bytes memory signature = buildSignature(order, user0_pk);
+        bytes memory signature = buildSignature(orderRequest, user0_pk);
 
         inputToken.mint(user0, inputAmount);
 
         vm.startPrank(user0);
         inputToken.approve(address(hub), inputAmount);
-        (, uint64 nonce) = hub.createOrder(buildOrderRequest(order, 1), permits, signature);
+        (, uint64 nonce) = hub.createOrder(orderRequest, permits, signature);
         vm.stopPrank();
 
         vm.warp(block.timestamp + 6 minutes);
@@ -182,7 +182,7 @@ contract OrderSpokeTest is BaseTest {
 
         vm.expectRevert();
         vm.expectRevert(OrderExpired.selector);
-        fillOrder(order, nonce, 0, filler);
+        fillOrder(orderRequest.order, nonce, 0, filler);
         vm.stopPrank();
     }
 
@@ -195,17 +195,17 @@ contract OrderSpokeTest is BaseTest {
         uint256 outputAmount = 2 * 1e18;
         address filler = user1;
 
-        Root.Order memory order = buildOrder(
+        Root.OrderRequest memory orderRequest = buildOrderRequest(
             user0, filler, address(inputToken), inputAmount, address(outputToken), outputAmount, 1 minutes, 5 minutes
         );
 
-        bytes memory signature = buildSignature(order, user0_pk);
+        bytes memory signature = buildSignature(orderRequest, user0_pk);
 
         inputToken.mint(user0, inputAmount);
 
         vm.startPrank(user0);
         inputToken.approve(address(hub), inputAmount);
-        (, uint64 nonce) = hub.createOrder(buildOrderRequest(order, 1), permits, signature);
+        (, uint64 nonce) = hub.createOrder(orderRequest, permits, signature);
         vm.stopPrank();
 
         vm.warp(block.timestamp + 2 minutes);
@@ -216,14 +216,14 @@ contract OrderSpokeTest is BaseTest {
 
         vm.expectRevert();
         vm.expectRevert(OrderCannotBeFilled.selector);
-        fillOrder(order, nonce, 0, filler);
+        fillOrder(orderRequest.order, nonce, 0, filler);
         vm.stopPrank();
 
         vm.startPrank(user2);
         outputToken.mint(user2, outputAmount);
         outputToken.approve(address(spoke), outputAmount);
 
-        fillOrder(order, nonce, 0, user2);
+        fillOrder(orderRequest.order, nonce, 0, user2);
         vm.stopPrank();
     }
 
@@ -236,33 +236,33 @@ contract OrderSpokeTest is BaseTest {
         uint256 outputAmount = 2 ether;
         address filler = user1;
 
-        Root.Order memory order = buildOrder(
+        Root.OrderRequest memory orderRequest = buildOrderRequest(
             user0, filler, address(inputToken), inputAmount, address(outputToken), outputAmount, 1 minutes, 5 minutes
         );
-
-        bytes memory signature = buildSignature(order, user0_pk);
-
-        inputToken.mint(user0, inputAmount);
+        bytes memory signature = buildSignature(orderRequest, user0_pk);
 
         vm.startPrank(user0);
+        inputToken.mint(user0, inputAmount);
         inputToken.approve(address(hub), inputAmount);
-        (, uint64 nonce) = hub.createOrder(buildOrderRequest(order, 1), permits, signature);
+        (, uint64 nonce) = hub.createOrder(orderRequest, permits, signature);
         vm.stopPrank();
 
         vm.startPrank(filler);
         outputToken.mint(filler, outputAmount);
         outputToken.transfer(address(spoke), outputAmount);
 
-        fillOrder(order, nonce, 0, filler);
+        fillOrder(orderRequest.order, nonce, 0, filler);
         validateOrderWasFilled(user0, filler, inputAmount, outputAmount);
         vm.stopPrank();
 
         vm.startPrank(filler);
         outputToken.mint(filler, outputAmount);
+        outputToken.transfer(address(spoke), outputAmount);
 
+        bytes32 fillerEncoded = BytesUtils.addressToBytes32(filler);
+        (uint256 fee, bytes memory options) = _getLzData(orderRequest.order, nonce, fillerEncoded);
         vm.expectRevert();
-        vm.expectRevert(OrderCannotBeFilled.selector);
-        fillOrder(order, nonce, 0, filler);
+        spoke.fillOrder{value: fee}(orderRequest.order, nonce, fillerEncoded, 0, options);
         vm.stopPrank();
     }
 
@@ -275,17 +275,15 @@ contract OrderSpokeTest is BaseTest {
         uint256 outputAmount = 2 * 1e18;
         address filler = user1;
 
-        Root.Order memory order = buildOrder(
+        Root.OrderRequest memory orderRequest = buildOrderRequest(
             user0, filler, address(inputToken), inputAmount, address(outputToken), outputAmount, 1 minutes, 5 minutes
         );
-
-        bytes memory signature = buildSignature(order, user0_pk);
-
-        inputToken.mint(user0, inputAmount);
+        bytes memory signature = buildSignature(orderRequest, user0_pk);
 
         vm.startPrank(user0);
+        inputToken.mint(user0, inputAmount);
         inputToken.approve(address(hub), inputAmount);
-        (, uint64 nonce) = hub.createOrder(buildOrderRequest(order, 1), permits, signature);
+        (, uint64 nonce) = hub.createOrder(orderRequest, permits, signature);
         vm.stopPrank();
 
         uint256 insufficientAmount = outputAmount - 1e17;
@@ -296,7 +294,7 @@ contract OrderSpokeTest is BaseTest {
 
         vm.expectRevert();
         vm.expectRevert(OrderCannotBeFilled.selector);
-        fillOrder(order, nonce, 0, filler);
+        fillOrder(orderRequest.order, nonce, 0, filler);
         vm.stopPrank();
     }
 
@@ -316,25 +314,26 @@ contract OrderSpokeTest is BaseTest {
         Root.Token[] memory outputs = new Root.Token[](1);
         outputs[0] = Root.Token({tokenType: Root.Type.NATIVE, tokenAddress: "", tokenId: 0, amount: 0});
 
-        Root.Order memory order = buildOrderBase(inputs, outputs, user0, filler, 1 minutes, 5 minutes, "", "", 0);
-        bytes memory signature = buildSignature(order, user0_pk);
+        Root.OrderRequest memory orderRequest =
+            buildBaseOrderRequest(inputs, outputs, user0, filler, 1 minutes, 5 minutes, "", "", 0);
+        bytes memory signature = buildSignature(orderRequest, user0_pk);
 
         vm.startPrank(user0);
         inputToken.mint(user0, inputAmount);
         vm.deal(user0, inputAmount);
         assertEq(address(hub).balance, 0);
-        (, uint64 nonce) = hub.createOrder{value: inputAmount}(buildOrderRequest(order, 1), permits, signature);
+        (, uint64 nonce) = hub.createOrder{value: inputAmount}(orderRequest, permits, signature);
         assertEq(address(hub).balance, inputAmount);
         vm.stopPrank();
 
         vm.startPrank(filler);
         bytes32 fillerEncoded = BytesUtils.addressToBytes32(filler);
-        (uint256 fee, bytes memory options) = _getLzData(order, nonce, fillerEncoded);
+        (uint256 fee, bytes memory options) = _getLzData(orderRequest.order, nonce, fillerEncoded);
 
         vm.deal(filler, outputAmount + fee);
 
         assertEq(address(spoke).balance, 0);
-        spoke.fillOrder{value: fee + order.callValue}(order, nonce, fillerEncoded, 0, options);
+        spoke.fillOrder{value: fee + orderRequest.order.callValue}(orderRequest.order, nonce, fillerEncoded, 0, options);
         verifyPackets(aEid, BytesUtils.addressToBytes32(address(hub)));
         assertEq(address(spoke).balance, 0);
         assertEq(address(hub).balance, 0);
@@ -351,18 +350,18 @@ contract OrderSpokeTest is BaseTest {
     function testFillOrderWithCalldata(uint256 inputAmount, uint256 outputAmount, uint128 gasValue) public {
         address filler = user1;
 
-        Root.Order memory order = buildOrder(
+        Root.OrderRequest memory orderRequest = buildOrderRequest(
             user0, filler, address(inputToken), inputAmount, address(outputToken), outputAmount, 1 minutes, 5 minutes
         );
-        order.callRecipient = BytesUtils.addressToBytes32(address(target));
-        order.callData = abi.encodeWithSelector(target.foo.selector, 1234);
-        order.callValue = uint256(gasValue);
-        bytes memory signature = buildSignature(order, user0_pk);
+        orderRequest.order.callRecipient = BytesUtils.addressToBytes32(address(target));
+        orderRequest.order.callData = abi.encodeWithSelector(target.foo.selector, 1234);
+        orderRequest.order.callValue = uint256(gasValue);
+        bytes memory signature = buildSignature(orderRequest, user0_pk);
 
         vm.startPrank(user0);
         inputToken.mint(user0, inputAmount);
         inputToken.approve(address(hub), inputAmount);
-        (, uint64 nonce) = hub.createOrder(buildOrderRequest(order, 1), permits, signature);
+        (, uint64 nonce) = hub.createOrder(orderRequest, permits, signature);
         vm.stopPrank();
 
         vm.startPrank(filler);
@@ -370,12 +369,14 @@ contract OrderSpokeTest is BaseTest {
         outputToken.transfer(address(spoke), outputAmount);
 
         bytes32 fillerEncoded = BytesUtils.addressToBytes32(filler);
-        (uint256 fee, bytes memory options) = _getLzData(order, nonce, fillerEncoded);
+        (uint256 fee, bytes memory options) = _getLzData(orderRequest.order, nonce, fillerEncoded);
 
         uint256 extraGas = 0.01 ether;
-        uint256 totalGas = order.callValue + fee + extraGas;
+        uint256 totalGas = orderRequest.order.callValue + fee + extraGas;
         vm.deal(filler, totalGas);
-        spoke.fillOrder{value: totalGas}(order, nonce, fillerEncoded, order.callValue + extraGas, options);
+        spoke.fillOrder{value: totalGas}(
+            orderRequest.order, nonce, fillerEncoded, orderRequest.order.callValue + extraGas, options
+        );
         verifyPackets(aEid, BytesUtils.addressToBytes32(address(hub)));
 
         validateOrderWasFilled(user0, filler, inputAmount, outputAmount);
@@ -420,17 +421,17 @@ contract OrderSpokeTest is BaseTest {
 
         uint256 inputAmount = 1e18;
         uint256 outputAmount = 2e18;
-        Root.Order memory order = buildOrder(
+        Root.OrderRequest memory orderRequest = buildOrderRequest(
             user0, user1, address(inputToken), inputAmount, address(outputToken), outputAmount, 1 minutes, 5 minutes
         );
-        order.destinationChainEid = 5;
-        bytes memory signature = buildSignature(order, user0_pk);
+        orderRequest.order.destinationChainEid = 5;
+        bytes memory signature = buildSignature(orderRequest, user0_pk);
 
         vm.startPrank(user0);
         inputToken.mint(user0, inputAmount);
         inputToken.approve(address(hub), inputAmount);
         vm.expectRevert();
-        (, uint64 nonce) = hub.createOrder(buildOrderRequest(order, 1), permits, signature);
+        (, uint64 nonce) = hub.createOrder(orderRequest, permits, signature);
         vm.stopPrank();
 
         vm.startPrank(filler);
@@ -438,9 +439,9 @@ contract OrderSpokeTest is BaseTest {
         outputToken.transfer(address(spoke), outputAmount);
 
         bytes32 fillerEncoded = BytesUtils.addressToBytes32(filler);
-        (uint256 fee, bytes memory options) = _getLzData(order, nonce, fillerEncoded);
+        (uint256 fee, bytes memory options) = _getLzData(orderRequest.order, nonce, fillerEncoded);
         vm.expectRevert();
-        spoke.fillOrder{value: fee}(order, nonce, fillerEncoded, 0, options);
+        spoke.fillOrder{value: fee}(orderRequest.order, nonce, fillerEncoded, 0, options);
         vm.stopPrank();
     }
 }

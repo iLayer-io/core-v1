@@ -12,6 +12,7 @@ contract CreateOrderScript is BaseScript {
 
         setupContracts();
 
+        /*
         Root.Order memory order = buildOrder();
 
         bytes[] memory permits = new bytes[](1);
@@ -20,7 +21,7 @@ contract CreateOrderScript is BaseScript {
         inputToken.approve(address(hub), inputAmount);
         inputToken.mint(user, inputAmount);
 
-        OrderHubMock.OrderRequest memory request = OrderHubMock.OrderRequest({
+        Root.OrderRequest memory request = Root.OrderRequest({
             order: order,
             deadline: uint64(block.timestamp + 1 days),
             nonce: uint64(block.number)
@@ -31,6 +32,7 @@ contract CreateOrderScript is BaseScript {
         console2.logBytes32(id);
         console2.log("order nonce:");
         console2.log(nonce);
+        */
 
         vm.stopBroadcast();
     }

@@ -14,16 +14,41 @@ contract Validator is Root, EIP712 {
         abi.encodePacked(
             "Order(",
             "bytes32 user,",
-            "bytes32 inputsHash,",
-            "bytes32 outputsHash,",
+            "bytes32 filler," "Token[] inputs,",
+            "Token[] outputs,",
             "uint32 sourceChainEid,",
             "uint32 destinationChainEid,",
             "bool sponsored,",
+            "uint64 primaryFillerDeadline,",
             "uint64 deadline,",
             "bytes32 callRecipient,",
             "bytes callData",
             "uint256 callValue",
-            ")"
+            ")",
+            "Token(uint8 tokenType,bytes32 tokenAddress,uint256 tokenId,uint256 amount)"
+        )
+    );
+
+    bytes32 public constant ORDER_REQUEST_TYPEHASH = keccak256(
+        abi.encodePacked(
+            "OrderRequest(",
+            "uint64 deadline,",
+            "uint64 nonce,",
+            "Order order",
+            ")",
+            "Order(",
+            "bytes32 user,",
+            "bytes32 filler," "Token[] inputs,",
+            "Token[] outputs,",
+            "uint32 sourceChainEid,",
+            "uint32 destinationChainEid,",
+            "bool sponsored,",
+            "uint64 primaryFillerDeadline,",
+            "uint64 deadline,",
+            "bytes32 callRecipient,",
+            "bytes callData",
+            ")",
+            "Token(uint8 tokenType,bytes32 tokenAddress,uint256 tokenId,uint256 amount)"
         )
     );
 
@@ -55,29 +80,36 @@ contract Validator is Root, EIP712 {
             abi.encode(
                 ORDER_TYPEHASH,
                 order.user, // bytes32 user
-                inputsHash, // bytes32 inputsHash
-                outputsHash, // bytes32 outputsHash
+                inputsHash, // bytes32 hashed "Token[] inputs"
+                outputsHash, // bytes32 hashed "Token[] outputs"
                 order.sourceChainEid, // uint32 sourceChainEid
                 order.destinationChainEid, // uint32 destinationChainEid
                 order.sponsored, // bool sponsored
                 order.deadline, // uint64 deadline
                 order.callRecipient, // bytes32 callRecipient
-                order.callValue, // uint256 callValue
-                keccak256(order.callData) // hashed bytes callData
+                keccak256(order.callData), // hashed bytes callData
+                order.callValue // uint256 callValue
             )
         );
     }
 
-    function validateOrder(Order memory order, bytes memory signature) public view returns (bool) {
-        // 1. Hash the order into EIP712 struct hash
-        bytes32 structHash = hashOrder(order);
+    function hashOrderRequest(OrderRequest memory request) public pure returns (bytes32) {
+        bytes32 orderHash = hashOrder(request.order);
 
-        // 2. Build the final signed message per EIP-712
+        return keccak256(
+            abi.encode(
+                ORDER_REQUEST_TYPEHASH,
+                request.deadline, // uint64 deadline
+                request.nonce, // uint64 nonce
+                orderHash // Order order
+            )
+        );
+    }
+
+    function validateOrderRequest(OrderRequest memory request, bytes memory signature) public view returns (bool) {
+        bytes32 structHash = hashOrderRequest(request);
         bytes32 digest = keccak256(abi.encodePacked("\x19\x01", domainSeparator(), structHash));
-
-        // 3. Recover or check signature against the user (cast from bytes32 -> address).
-        address orderSigner = BytesUtils.bytes32ToAddress(order.user);
-        //return isValidSignatureNow(orderSigner, digest, signature);
-        return SignatureChecker.isValidSignatureNow(orderSigner, digest, signature);
+        address orderRequestSigner = BytesUtils.bytes32ToAddress(request.order.user);
+        return SignatureChecker.isValidSignatureNow(orderRequestSigner, digest, signature);
     }
 }
