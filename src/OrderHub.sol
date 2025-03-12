@@ -25,10 +25,12 @@ contract OrderHub is Validator, ReentrancyGuard, OAppReceiver, IERC165, IERC721R
 
     mapping(bytes32 orderId => Status status) public orders;
     mapping(address user => mapping(uint64 nonce => bool used)) public requestNonces;
+    mapping(uint32 endpointId => bool whitelisted) public whitelistedEndpoints;
     uint64 public maxOrderDeadline;
     uint64 public timeBuffer;
     uint64 public nonce;
 
+    event WhitelistedEndpointsUpdated(uint32 indexed endpointId, bool whitelisted);
     event TimeBufferUpdated(uint64 oldTimeBufferVal, uint64 newTimeBufferVal);
     event MaxOrderDeadlineUpdated(uint64 oldDeadline, uint64 newDeadline);
     event OrderCreated(bytes32 indexed orderId, uint64 nonce, Order order, address indexed calller);
@@ -40,6 +42,7 @@ contract OrderHub is Validator, ReentrancyGuard, OAppReceiver, IERC165, IERC721R
 
     error RequestNonceReused();
     error RequestExpired();
+    error InvalidEndpoint();
     error InvalidOrderInputApprovals();
     error InvalidOrderSignature();
     error InvalidDeadline();
@@ -56,6 +59,11 @@ contract OrderHub is Validator, ReentrancyGuard, OAppReceiver, IERC165, IERC721R
     {
         maxOrderDeadline = _maxOrderDeadline;
         timeBuffer = _timeBuffer;
+    }
+
+    function setWhitelistedEndpoint(uint32 endpointId, bool whitelisted) external onlyOwner {
+        emit WhitelistedEndpointsUpdated(endpointId, whitelisted);
+        whitelistedEndpoints[endpointId] = whitelisted;
     }
 
     function setTimeBuffer(uint64 newTimeBuffer) external onlyOwner {
@@ -186,6 +194,9 @@ contract OrderHub is Validator, ReentrancyGuard, OAppReceiver, IERC165, IERC721R
     }
 
     function _checkOrderValidity(Order memory order, bytes[] memory permits, bytes memory signature) internal view {
+        if (!whitelistedEndpoints[order.destinationChainEid] || order.sourceChainEid == order.destinationChainEid) {
+            revert InvalidEndpoint();
+        }
         if (order.inputs.length != permits.length) revert InvalidOrderInputApprovals();
         if (order.deadline > block.timestamp + maxOrderDeadline) revert InvalidDeadline();
         if (!validateOrder(order, signature)) revert InvalidOrderSignature();

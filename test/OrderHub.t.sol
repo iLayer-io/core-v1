@@ -329,6 +329,26 @@ contract OrderHubTest is BaseTest {
     }
 
     /**
+     * @notice Test order creation failure when using an invalid endpoint id.
+     */
+    function testCreateOrderWithInvalidEndpoint() public {
+        Validator.Order memory order =
+            buildOrder(user1, address(this), address(0), 1, address(outputToken), 1, 1 minutes, 5 minutes);
+        order.sourceChainEid = 3;
+        bytes memory signature = buildSignature(order, user1_pk);
+
+        vm.expectRevert();
+        hub.createOrder(buildOrderRequest(order, 1), permits, signature);
+
+        order.sourceChainEid = 1;
+        order.destinationChainEid = 1;
+        signature = buildSignature(order, user1_pk);
+
+        vm.expectRevert();
+        hub.createOrder(buildOrderRequest(order, 1), permits, signature);
+    }
+
+    /**
      * @notice Test order creation failure when using an invalid token address.
      */
     function testCreateOrderWithInvalidTokens() public {

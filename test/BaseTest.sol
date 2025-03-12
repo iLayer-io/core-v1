@@ -98,6 +98,7 @@ contract BaseTest is TestHelperOz5 {
         vm.label(address(spoke.executor()), "EXECUTOR");
 
         hub.setMaxOrderDeadline(1 days);
+        hub.setWhitelistedEndpoint(bEid, true);
     }
 
     /**
