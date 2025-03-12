@@ -8,6 +8,7 @@ docs/
 venv/
 .DS_Store
 node_modules
+lcov.info
 coverage
 coverage.json
 typechain
