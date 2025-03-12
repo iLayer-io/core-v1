@@ -119,6 +119,7 @@ contract OrderSpokeTest is BaseTest {
     /**
      * @notice Tests that filling an order with an invalid filler reverts.
      */
+    /// forge-config: default.allow_internal_expect_revert = true
     function testFillOrderWithInvalidFiller() public {
         uint256 inputAmount = 1e18;
         uint256 outputAmount = 2 * 1e18;
@@ -154,6 +155,7 @@ contract OrderSpokeTest is BaseTest {
     /**
      * @notice Tests that filling an order after its deadline reverts.
      */
+    /// forge-config: default.allow_internal_expect_revert = true
     function testFillOrderWithExpiredDeadline() public {
         uint256 inputAmount = 1e18;
         uint256 outputAmount = 2 * 1e18;
@@ -228,6 +230,7 @@ contract OrderSpokeTest is BaseTest {
     /**
      * @notice Tests that filling an already filled order reverts.
      */
+    /// forge-config: default.allow_internal_expect_revert = true
     function testFillOrderWithOrderAlreadyFilled() public {
         uint256 inputAmount = 1 ether;
         uint256 outputAmount = 2 ether;
@@ -266,6 +269,7 @@ contract OrderSpokeTest is BaseTest {
     /**
      * @notice Tests that filling an order with insufficient output token amount reverts.
      */
+    /// forge-config: default.allow_internal_expect_revert = true
     function testFillOrderWithInsufficientAmount() public {
         uint256 inputAmount = 1e18;
         uint256 outputAmount = 2 * 1e18;
