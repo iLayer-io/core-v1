@@ -429,6 +429,7 @@ contract OrderSpokeTest is BaseTest {
         vm.startPrank(user0);
         inputToken.mint(user0, inputAmount);
         inputToken.approve(address(hub), inputAmount);
+        vm.expectRevert();
         (, uint64 nonce) = hub.createOrder(buildOrderRequest(order, 1), permits, signature);
         vm.stopPrank();
 
