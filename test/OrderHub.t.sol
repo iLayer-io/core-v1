@@ -466,6 +466,24 @@ contract OrderHubTest is BaseTest {
     }
 
     /**
+     * @notice Test source endpoint validation.
+     */
+    function testIncorrectEidRevert() public {
+        uint256 inputAmount = 1e18;
+        Validator.Order memory order =
+            buildOrder(user0, user1, address(inputToken), inputAmount, address(outputToken), 0, 1 minutes, 5 minutes);
+        order.sourceChainEid = 2;
+        bytes memory signature = buildSignature(order, user0_pk);
+
+        vm.startPrank(user0);
+        inputToken.mint(user0, inputAmount);
+        inputToken.approve(address(hub), inputAmount);
+        vm.expectRevert();
+        hub.createOrder(buildOrderRequest(order, 1), permits, signature);
+        vm.stopPrank();
+    }
+
+    /**
      * @notice Test updating the time buffer.
      */
     function testTimeBufferUpdate(uint64 timeBuffer) public {
