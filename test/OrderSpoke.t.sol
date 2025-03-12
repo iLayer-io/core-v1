@@ -439,7 +439,7 @@ contract OrderSpokeTest is BaseTest {
         bytes32 fillerEncoded = BytesUtils.addressToBytes32(filler);
         (uint256 fee, bytes memory options) = _getLzData(order, nonce, fillerEncoded);
         vm.expectRevert();
-        spoke.fillOrder{value: fee}(order, nonce, fillerEncoded, 0, 0, options);
+        spoke.fillOrder{value: fee}(order, nonce, fillerEncoded, 0, options);
         vm.stopPrank();
     }
 }

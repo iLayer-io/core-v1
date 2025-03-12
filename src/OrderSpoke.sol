@@ -26,7 +26,7 @@ contract OrderSpoke is Root, ReentrancyGuard, OAppSender {
         Type indexed tokenType, uint256 tokenId, address indexed token, address indexed to, uint256 amount
     );
 
-    error OrderCannotBeFilled();
+    error OrderAlreadyFilled();
     error OrderExpired();
     error InvalidDestinationChain();
     error RestrictedToPrimaryFiller();
@@ -60,7 +60,7 @@ contract OrderSpoke is Root, ReentrancyGuard, OAppSender {
         bytes32 orderId = getOrderId(order, orderNonce);
 
         _validateOrder(order, orderId);
-        _transferFunds(order, orderId);
+        _transferFunds(order);
 
         if (order.callData.length > 0) {
             _callHook(order, maxGas);
@@ -81,7 +81,7 @@ contract OrderSpoke is Root, ReentrancyGuard, OAppSender {
     function _validateOrder(Order memory order, bytes32 orderId) internal view {
         uint64 currentTime = uint64(block.timestamp);
         if (currentTime > order.deadline) revert OrderExpired();
-        if (ordersFilled[orderId]) revert OrderCannotBeFilled();
+        if (ordersFilled[orderId]) revert OrderAlreadyFilled();
         if (order.destinationChainEid != endpoint.eid()) revert InvalidDestinationChain();
 
         address filler = BytesUtils.bytes32ToAddress(order.filler);
@@ -92,12 +92,13 @@ contract OrderSpoke is Root, ReentrancyGuard, OAppSender {
 
     function _callHook(Order memory order, uint256 maxGas) internal {
         address callRecipient = BytesUtils.bytes32ToAddress(order.callRecipient);
-        bool successful =
-            executor.exec{value: order.callValue}(callRecipient, maxGas, order.callValue, MAX_RETURNDATA_COPY_SIZE, order.callData);
+        bool successful = executor.exec{value: order.callValue}(
+            callRecipient, maxGas, order.callValue, MAX_RETURNDATA_COPY_SIZE, order.callData
+        );
         if (!successful) revert ExternalCallFailed();
     }
 
-    function _transferFunds(Order memory order, bytes32 orderId) internal {
+    function _transferFunds(Order memory order) internal {
         address to = BytesUtils.bytes32ToAddress(order.user);
         for (uint256 i = 0; i < order.outputs.length; i++) {
             Token memory output = order.outputs[i];
