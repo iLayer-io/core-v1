@@ -50,8 +50,12 @@ contract OrderHub is Validator, ReentrancyGuard, OAppReceiver, IERC165, IERC721R
     error OrderCannotBeFilled();
     error OrderExpired();
 
-    constructor(address _router) Ownable(msg.sender) OAppCore(_router, msg.sender) {
-        maxOrderDeadline = 1 days;
+    constructor(address _router, uint64 _maxOrderDeadline, uint64 _timeBuffer)
+        Ownable(msg.sender)
+        OAppCore(_router, msg.sender)
+    {
+        maxOrderDeadline = _maxOrderDeadline;
+        timeBuffer = _timeBuffer;
     }
 
     function setTimeBuffer(uint64 newTimeBuffer) external onlyOwner {

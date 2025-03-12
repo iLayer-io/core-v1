@@ -43,8 +43,9 @@ contract OrderHubMock is Validator, ReentrancyGuard, Ownable, IERC165, IERC721Re
     error OrderCannotBeFilled();
     error OrderExpired();
 
-    constructor() Ownable(msg.sender) {
-        maxOrderDeadline = 1 days;
+    constructor(uint64 _maxOrderDeadline, uint64 _timeBuffer) Ownable(msg.sender) {
+        maxOrderDeadline = _maxOrderDeadline;
+        timeBuffer = _timeBuffer;
     }
 
     function setTimeBuffer(uint64 newTimeBuffer) external onlyOwner {
