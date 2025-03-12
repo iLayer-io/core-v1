@@ -43,6 +43,7 @@ contract OrderHub is Validator, ReentrancyGuard, OAppReceiver, IERC165, IERC721R
     error InvalidOrderInputApprovals();
     error InvalidOrderSignature();
     error InvalidDeadline();
+    error InvalidSourceChain();
     error OrderDeadlinesMismatch();
     error OrderPrimaryFillerExpired();
     error OrderCannotBeWithdrawn();
@@ -180,20 +181,13 @@ contract OrderHub is Validator, ReentrancyGuard, OAppReceiver, IERC165, IERC721R
     }
 
     function _checkOrderValidity(Order memory order, bytes[] memory permits, bytes memory signature) internal view {
-        if (order.inputs.length != permits.length) {
-            revert InvalidOrderInputApprovals();
-        }
-        if (order.deadline > block.timestamp + maxOrderDeadline) {
-            revert InvalidDeadline();
-        }
+        if (order.inputs.length != permits.length) revert InvalidOrderInputApprovals();
+        if (order.deadline > block.timestamp + maxOrderDeadline) revert InvalidDeadline();
         if (!validateOrder(order, signature)) revert InvalidOrderSignature();
-        if (order.primaryFillerDeadline > order.deadline) {
-            revert OrderDeadlinesMismatch();
-        }
+        if (order.primaryFillerDeadline > order.deadline) revert OrderDeadlinesMismatch();
         if (block.timestamp >= order.deadline) revert OrderExpired();
-        if (block.timestamp >= order.primaryFillerDeadline) {
-            revert OrderPrimaryFillerExpired();
-        }
+        if (block.timestamp >= order.primaryFillerDeadline) revert OrderPrimaryFillerExpired();
+        if (order.sourceChainEid != endpoint.eid()) revert InvalidSourceChain();
     }
 
     function _applyPermits(bytes memory permit, address user, address token) internal {
