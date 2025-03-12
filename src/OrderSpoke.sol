@@ -37,7 +37,11 @@ contract OrderSpoke is Root, ReentrancyGuard, OAppSender {
         executor = new Executor();
     }
 
-    function sweep(Type tokenType, uint256 tokenId, address token, address to, uint256 amount) external onlyOwner {
+    function sweep(Type tokenType, uint256 tokenId, address token, address to, uint256 amount)
+        external
+        onlyOwner
+        nonReentrant
+    {
         _transfer(tokenType, address(this), to, token, tokenId, amount);
 
         emit TokenSweep(tokenType, tokenId, token, to, amount);
@@ -54,19 +58,17 @@ contract OrderSpoke is Root, ReentrancyGuard, OAppSender {
         bytes32 fundingWallet,
         uint256 maxGas,
         bytes calldata options
-    ) external payable returns (MessagingReceipt memory) {
+    ) external payable nonReentrant returns (MessagingReceipt memory) {
         if (msg.value <= order.callValue) revert InsufficientGasValue();
 
         bytes32 orderId = getOrderId(order, orderNonce);
-
         _validateOrder(order, orderId);
-        _transferFunds(order);
+        ordersFilled[orderId] = true;
 
+        _transferFunds(order);
         if (order.callData.length > 0) {
             _callHook(order, maxGas);
         }
-
-        ordersFilled[orderId] = true;
 
         bytes memory payload = abi.encode(order, orderNonce, fundingWallet);
         MessagingReceipt memory receipt = _lzSend(
