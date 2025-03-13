@@ -106,7 +106,7 @@ contract OrderSpoke is Root, ReentrancyGuard, OAppSender {
             Token memory output = order.outputs[i];
 
             address tokenAddress = BytesUtils.bytes32ToAddress(output.tokenAddress);
-            _transfer(output.tokenType, address(this), to, tokenAddress, output.tokenId, output.amount);
+            _transfer(output.tokenType, msg.sender, to, tokenAddress, output.tokenId, output.amount);
         }
     }
 
