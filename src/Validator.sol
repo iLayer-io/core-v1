@@ -14,7 +14,8 @@ contract Validator is Root, EIP712 {
         abi.encodePacked(
             "Order(",
             "bytes32 user,",
-            "bytes32 filler," "Token[] inputs,",
+            "bytes32 filler,",
+            "Token[] inputs,",
             "Token[] outputs,",
             "uint32 sourceChainEid,",
             "uint32 destinationChainEid,",
@@ -47,6 +48,7 @@ contract Validator is Root, EIP712 {
             "uint64 deadline,",
             "bytes32 callRecipient,",
             "bytes callData",
+            "uint256 callValue",
             ")",
             "Token(uint8 tokenType,bytes32 tokenAddress,uint256 tokenId,uint256 amount)"
         )
@@ -80,11 +82,13 @@ contract Validator is Root, EIP712 {
             abi.encode(
                 ORDER_TYPEHASH,
                 order.user, // bytes32 user
+                order.filler, // bytes32 filler
                 inputsHash, // bytes32 hashed "Token[] inputs"
                 outputsHash, // bytes32 hashed "Token[] outputs"
                 order.sourceChainEid, // uint32 sourceChainEid
                 order.destinationChainEid, // uint32 destinationChainEid
                 order.sponsored, // bool sponsored
+                order.primaryFillerDeadline, // uint64 primaryFillerDeadline
                 order.deadline, // uint64 deadline
                 order.callRecipient, // bytes32 callRecipient
                 keccak256(order.callData), // hashed bytes callData
