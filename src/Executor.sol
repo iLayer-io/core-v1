@@ -11,16 +11,26 @@ import {ExcessivelySafeCall} from "@nomad-xyz/excessively-safe-call/src/Excessiv
 contract Executor {
     using ExcessivelySafeCall for address;
 
-    event ContractCallExecuted(address target);
+    address public immutable owner;
+
+    event ContractCallExecuted(address indexed target, uint256 value, bytes data);
+
+    error RestrictedToOwner();
+
+    constructor() {
+        owner = msg.sender;
+    }
 
     function exec(address target, uint256 gas, uint256 value, uint16 maxCopy, bytes memory data)
         external
         payable
         returns (bool)
     {
+        if (owner != msg.sender) revert RestrictedToOwner();
+
         (bool res,) = target.excessivelySafeCall(gas, value, maxCopy, data);
 
-        emit ContractCallExecuted(target);
+        emit ContractCallExecuted(target, value, data);
 
         return res;
     }
