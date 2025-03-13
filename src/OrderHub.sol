@@ -2,6 +2,8 @@
 pragma solidity ^0.8.24;
 
 import {Ownable} from "@openzeppelin/contracts/access/Ownable2Step.sol";
+import {ERC2771Context} from "@openzeppelin/contracts/metatx/ERC2771Context.sol";
+import {Context} from "@openzeppelin/contracts/utils/Context.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import {IERC721Receiver} from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
@@ -16,7 +18,15 @@ import {Validator} from "./Validator.sol";
  * @dev Contract that stores user orders and input tokens and sends the fill message
  * @custom:security-contact security@ilayer.io
  */
-contract OrderHub is Validator, ReentrancyGuard, OAppReceiver, IERC165, IERC721Receiver, IERC1155Receiver {
+contract OrderHub is
+    Validator,
+    ReentrancyGuard,
+    OAppReceiver,
+    ERC2771Context,
+    IERC165,
+    IERC721Receiver,
+    IERC1155Receiver
+{
     mapping(bytes32 orderId => Status status) public orders;
     mapping(address user => mapping(uint64 nonce => bool used)) public requestNonces;
     uint64 public maxOrderDeadline;
@@ -45,9 +55,10 @@ contract OrderHub is Validator, ReentrancyGuard, OAppReceiver, IERC165, IERC721R
     error OrderCannotBeFilled();
     error OrderExpired();
 
-    constructor(address _router, uint64 _maxOrderDeadline, uint64 _timeBuffer)
+    constructor(address _trustedForwarder, address _router, uint64 _maxOrderDeadline, uint64 _timeBuffer)
         Ownable(msg.sender)
         OAppCore(_router, msg.sender)
+        ERC2771Context(_trustedForwarder)
     {
         maxOrderDeadline = _maxOrderDeadline;
         timeBuffer = _timeBuffer;
@@ -97,7 +108,7 @@ contract OrderHub is Validator, ReentrancyGuard, OAppReceiver, IERC165, IERC721R
             _transfer(input.tokenType, user, address(this), tokenAddress, input.tokenId, input.amount);
         }
 
-        emit OrderCreated(orderId, orderNonce, order, msg.sender);
+        emit OrderCreated(orderId, orderNonce, order, _msgSender());
 
         return (orderId, orderNonce);
     }
@@ -105,7 +116,7 @@ contract OrderHub is Validator, ReentrancyGuard, OAppReceiver, IERC165, IERC721R
     function withdrawOrder(Order memory order, uint64 orderNonce) external nonReentrant {
         address user = BytesUtils.bytes32ToAddress(order.user);
         bytes32 orderId = getOrderId(order, orderNonce);
-        if (user != msg.sender || order.deadline + timeBuffer > block.timestamp || orders[orderId] != Status.ACTIVE) {
+        if (user != _msgSender() || order.deadline + timeBuffer > block.timestamp || orders[orderId] != Status.ACTIVE) {
             revert OrderCannotBeWithdrawn();
         }
 
@@ -198,5 +209,17 @@ contract OrderHub is Validator, ReentrancyGuard, OAppReceiver, IERC165, IERC721R
             abi.decode(permit, (uint256, uint256, uint8, bytes32, bytes32));
 
         PermitHelper.trustlessPermit(token, user, address(this), value, deadline, v, r, s);
+    }
+
+    function _msgSender() internal view override(ERC2771Context, Context) returns (address) {
+        return ERC2771Context._msgSender();
+    }
+
+    function _msgData() internal view override(ERC2771Context, Context) returns (bytes calldata) {
+        return ERC2771Context._msgData();
+    }
+
+    function _contextSuffixLength() internal view override(ERC2771Context, Context) returns (uint256) {
+        return ERC2771Context._contextSuffixLength();
     }
 }
