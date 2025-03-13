@@ -35,7 +35,7 @@ contract OrderHub is
 
     event TimeBufferUpdated(uint64 oldTimeBufferVal, uint64 newTimeBufferVal);
     event MaxOrderDeadlineUpdated(uint64 oldDeadline, uint64 newDeadline);
-    event OrderCreated(bytes32 indexed orderId, uint64 nonce, Order order, address indexed calller);
+    event OrderCreated(bytes32 indexed orderId, uint64 nonce, Order order, address indexed caller);
     event OrderWithdrawn(bytes32 indexed orderId, address indexed caller);
     event OrderSettled(bytes32 indexed orderId, Order indexed order);
     event ERC721Received(address operator, address from, uint256 tokenId, bytes data);

@@ -68,7 +68,7 @@ contract OrderSpokeTest is BaseTest {
 
         vm.startPrank(filler);
         outputToken.mint(filler, outputAmount);
-        outputToken.transfer(address(spoke), outputAmount);
+        outputToken.approve(address(spoke), outputAmount);
 
         MessagingReceipt memory receipt = fillOrder(orderRequest.order, nonce, 0, filler);
         validateOrderWasFilled(user0, filler, inputAmount, outputAmount);
@@ -103,15 +103,11 @@ contract OrderSpokeTest is BaseTest {
 
         vm.startPrank(filler);
         outputToken.mint(filler);
-        outputToken.transfer(address(spoke), 1);
-
-        assertEq(outputToken.balanceOf(address(spoke)), 1);
-        assertEq(outputToken.balanceOf(user0), 0);
+        outputToken.approve(address(spoke), 1);
 
         fillOrder(orderRequest.order, nonce, 0, filler);
 
         assertEq(outputToken.balanceOf(filler), 0);
-        assertEq(outputToken.balanceOf(address(spoke)), 0);
         assertEq(outputToken.balanceOf(user0), 1);
         vm.stopPrank();
     }
@@ -144,7 +140,7 @@ contract OrderSpokeTest is BaseTest {
         outputToken.mint(invalidFiller, outputAmount);
 
         vm.startPrank(invalidFiller);
-        outputToken.transfer(address(spoke), outputAmount);
+        outputToken.approve(address(spoke), outputAmount);
 
         vm.expectRevert();
         vm.expectRevert(RestrictedToPrimaryFiller.selector);
@@ -249,7 +245,7 @@ contract OrderSpokeTest is BaseTest {
 
         vm.startPrank(filler);
         outputToken.mint(filler, outputAmount);
-        outputToken.transfer(address(spoke), outputAmount);
+        outputToken.approve(address(spoke), outputAmount);
 
         fillOrder(orderRequest.order, nonce, 0, filler);
         validateOrderWasFilled(user0, filler, inputAmount, outputAmount);
@@ -257,7 +253,7 @@ contract OrderSpokeTest is BaseTest {
 
         vm.startPrank(filler);
         outputToken.mint(filler, outputAmount);
-        outputToken.transfer(address(spoke), outputAmount);
+        outputToken.approve(address(spoke), outputAmount);
 
         bytes32 fillerEncoded = BytesUtils.addressToBytes32(filler);
         (uint256 fee, bytes memory options) = _getLzData(orderRequest.order, nonce, fillerEncoded);
@@ -366,7 +362,7 @@ contract OrderSpokeTest is BaseTest {
 
         vm.startPrank(filler);
         outputToken.mint(filler, outputAmount);
-        outputToken.transfer(address(spoke), outputAmount);
+        outputToken.approve(address(spoke), outputAmount);
 
         bytes32 fillerEncoded = BytesUtils.addressToBytes32(filler);
         (uint256 fee, bytes memory options) = _getLzData(orderRequest.order, nonce, fillerEncoded);
@@ -436,7 +432,7 @@ contract OrderSpokeTest is BaseTest {
 
         vm.startPrank(filler);
         outputToken.mint(filler, outputAmount);
-        outputToken.transfer(address(spoke), outputAmount);
+        outputToken.approve(address(spoke), outputAmount);
 
         bytes32 fillerEncoded = BytesUtils.addressToBytes32(filler);
         (uint256 fee, bytes memory options) = _getLzData(orderRequest.order, nonce, fillerEncoded);
