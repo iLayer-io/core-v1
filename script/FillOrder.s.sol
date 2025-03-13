@@ -17,7 +17,7 @@ contract FillOrderScript is BaseScript {
         Root.Order memory order = buildOrder();
 
         outputToken.mint(filler, outputAmount);
-        outputToken.transfer(address(spoke), outputAmount);
+        outputToken.approve(address(spoke), outputAmount);
 
         bytes32 fillerEncoded = BytesUtils.addressToBytes32(filler);
         spoke.fillOrder{value: 1e8}(order, nonce, fillerEncoded, 0, 0, "");
