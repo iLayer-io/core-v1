@@ -32,13 +32,13 @@ contract Root {
 
     struct Order {
         bytes32 user;
-        bytes32 filler; // excluded from user signing
+        bytes32 filler;
         Token[] inputs;
         Token[] outputs;
         uint32 sourceChainEid;
         uint32 destinationChainEid;
         bool sponsored;
-        uint64 primaryFillerDeadline; // excluded from user signing
+        uint64 primaryFillerDeadline;
         uint64 deadline;
         bytes32 callRecipient;
         bytes callData;
