@@ -4,7 +4,7 @@ pragma solidity ^0.8.24;
 import {Ownable} from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {SafeERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {OAppCore, OAppSender, MessagingFee, MessagingReceipt} from "@layerzerolabs/oapp-evm/contracts/oapp/OApp.sol";
+import {OApp, MessagingFee, MessagingReceipt, Origin} from "@layerzerolabs/oapp-evm/contracts/oapp/OApp.sol";
 import {BytesUtils} from "./libraries/BytesUtils.sol";
 import {Root} from "./Root.sol";
 import {Executor} from "./Executor.sol";
@@ -14,13 +14,20 @@ import {Executor} from "./Executor.sol";
  * @dev Contract that manages order fill and output token transfer from the solver to the user
  * @custom:security-contact security@ilayer.io
  */
-contract OrderSpoke is Root, ReentrancyGuard, OAppSender {
+contract OrderSpoke is Root, ReentrancyGuard, OApp {
     using SafeERC20 for IERC20;
+
+    enum OrderStatus {
+        NULL,
+        PENDING,
+        FILLED
+    }
 
     uint16 public constant MAX_RETURNDATA_COPY_SIZE = 32;
     Executor public immutable executor;
-    mapping(bytes32 => bool) public ordersFilled;
+    mapping(bytes32 => OrderStatus) public orders;
 
+    event PendingOrderReceived(bytes32 indexed orderId, uint32 indexed spokeEid);
     event OrderFilled(bytes32 indexed orderId, Order indexed order, address indexed caller, MessagingReceipt receipt);
     event TokenSweep(
         Type indexed tokenType, uint256 tokenId, address indexed token, address indexed to, uint256 amount
@@ -33,7 +40,7 @@ contract OrderSpoke is Root, ReentrancyGuard, OAppSender {
     error InsufficientGasValue();
     error ExternalCallFailed();
 
-    constructor(address _router) Ownable(msg.sender) OAppCore(_router, msg.sender) {
+    constructor(address _router) Ownable(msg.sender) OApp(_router, msg.sender) {
         executor = new Executor();
     }
 
@@ -63,7 +70,7 @@ contract OrderSpoke is Root, ReentrancyGuard, OAppSender {
 
         bytes32 orderId = getOrderId(order, orderNonce);
         _validateOrder(order, orderId);
-        ordersFilled[orderId] = true;
+        orders[orderId] = OrderStatus.FILLED;
 
         _transferFunds(order);
         if (order.callData.length > 0) {
@@ -83,7 +90,7 @@ contract OrderSpoke is Root, ReentrancyGuard, OAppSender {
     function _validateOrder(Order memory order, bytes32 orderId) internal view {
         uint64 currentTime = uint64(block.timestamp);
         if (currentTime > order.deadline) revert OrderExpired();
-        if (ordersFilled[orderId]) revert OrderAlreadyFilled();
+        if (orders[orderId] != OrderStatus.PENDING) revert OrderAlreadyFilled();
         if (order.destinationChainEid != endpoint.eid()) revert InvalidDestinationChain();
 
         address filler = BytesUtils.bytes32ToAddress(order.filler);
@@ -108,6 +115,16 @@ contract OrderSpoke is Root, ReentrancyGuard, OAppSender {
             address tokenAddress = BytesUtils.bytes32ToAddress(output.tokenAddress);
             _transfer(output.tokenType, msg.sender, to, tokenAddress, output.tokenId, output.amount);
         }
+    }
+
+    function _lzReceive(Origin calldata data, bytes32, bytes calldata payload, address, bytes calldata)
+        internal
+        override
+    {
+        (bytes32 orderId) = abi.decode(payload, (bytes32));
+        orders[orderId] = OrderStatus.PENDING;
+
+        emit PendingOrderReceived(orderId, data.srcEid);
     }
 
     function _payNative(uint256 _nativeFee) internal pure override returns (uint256 nativeFee) {

@@ -104,14 +104,25 @@ contract BaseTest is TestHelperOz5 {
     }
 
     /**
-     * @notice Retrieves messaging fee and options data required for order processing.
+     * @notice Retrieves messaging fee and options data required for order settlement.
+     * @return fee The estimated fee for messaging.
+     * @return options The options payload for the LayerZero messaging.
+     */
+    function _getCreationL0Data() internal view returns (uint256 fee, bytes memory options) {
+        options = OptionsBuilder.newOptions().addExecutorLzReceiveOption(1e8, 0);
+        bytes memory payload = abi.encode(bytes32(0)); // pass a random bytes32 field
+        fee = hub.estimateFee(bEid, payload, options);
+    }
+
+    /**
+     * @notice Retrieves messaging fee and options data required for order settlement.
      * @param order The order to be processed.
      * @param orderNonce The order nonce.
      * @param hubFundingWallet The hub funding wallet encoded as bytes32.
      * @return fee The estimated fee for messaging.
      * @return options The options payload for the LayerZero messaging.
      */
-    function _getLzData(Root.Order memory order, uint64 orderNonce, bytes32 hubFundingWallet)
+    function _getSettlementL0Data(Root.Order memory order, uint64 orderNonce, bytes32 hubFundingWallet)
         internal
         view
         returns (uint256 fee, bytes memory options)
@@ -427,6 +438,40 @@ contract BaseTest is TestHelperOz5 {
     }
 
     /**
+     * @notice Creates an order.
+     * @param orderRequest The order to create.
+     * @param _permits The token permits.
+     * @param signature The order signature.
+     * @param gasValue The extra gas to supply;
+     */
+    function createOrder(
+        Root.OrderRequest memory orderRequest,
+        bytes[] memory _permits,
+        bytes memory signature,
+        uint256 gasValue
+    ) public payable returns (bytes32 orderId, uint64 nonce, MessagingReceipt memory) {
+        (uint256 fee, bytes memory options) = _getCreationL0Data();
+        (bytes32 _orderId, uint64 _nonce, MessagingReceipt memory receipt) =
+            hub.createOrder{value: fee + gasValue}(orderRequest, _permits, signature, options);
+
+        verifyPackets(bEid, BytesUtils.addressToBytes32(address(spoke)));
+
+        return (_orderId, _nonce, receipt);
+    }
+
+    function createOrderExpectRevert(
+        Root.OrderRequest memory orderRequest,
+        bytes[] memory _permits,
+        bytes memory signature,
+        uint256 gasValue
+    ) public {
+        (uint256 fee, bytes memory options) = _getCreationL0Data();
+
+        vm.expectRevert();
+        hub.createOrder{value: fee + gasValue}(orderRequest, _permits, signature, options);
+    }
+
+    /**
      * @notice Fills an order by invoking fillOrder on the OrderSpoke contract.
      * @param order The order to fill.
      * @param nonce The order nonce.
@@ -440,7 +485,7 @@ contract BaseTest is TestHelperOz5 {
         returns (MessagingReceipt memory)
     {
         bytes32 fillerEncoded = BytesUtils.addressToBytes32(filler);
-        (uint256 fee, bytes memory options) = _getLzData(order, nonce, fillerEncoded);
+        (uint256 fee, bytes memory options) = _getSettlementL0Data(order, nonce, fillerEncoded);
 
         MessagingReceipt memory receipt =
             spoke.fillOrder{value: fee + order.callValue}(order, nonce, fillerEncoded, maxGas, options);

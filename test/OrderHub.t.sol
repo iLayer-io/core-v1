@@ -41,12 +41,13 @@ contract OrderHubTest is BaseTest {
         bytes memory signature = buildSignature(orderRequest, user0_pk);
         address hubAddr = address(hub);
         assertEq(inputToken.balanceOf(hubAddr), 0);
+
+        vm.startPrank(user0);
         inputToken.mint(user0, inputAmount);
-        vm.prank(user0);
         inputToken.approve(address(hub), inputAmount);
-        vm.prank(user0);
-        hub.createOrder(orderRequest, permits, signature);
+        createOrder(orderRequest, permits, signature, 0);
         assertEq(inputToken.balanceOf(hubAddr), inputAmount);
+        vm.stopPrank();
 
         return orderRequest;
     }
@@ -77,7 +78,7 @@ contract OrderHubTest is BaseTest {
         permitsArray[0] = permit;
 
         inputToken.mint(user0, inputAmount);
-        hub.createOrder(orderRequest, permitsArray, signature);
+        createOrder(orderRequest, permitsArray, signature, 0);
         assertEq(inputToken.balanceOf(address(hub)), inputAmount);
     }
 
@@ -103,11 +104,12 @@ contract OrderHubTest is BaseTest {
         address hubAddr = address(hub);
         assertEq(inputToken.balanceOf(hubAddr), 0);
         inputToken.mint(user0, inputAmount);
-        vm.prank(user0);
+
+        vm.startPrank(user0);
         inputToken.approve(address(hub), inputAmount);
-        vm.prank(user0);
-        hub.createOrder(orderRequest, permits, signature);
+        createOrder(orderRequest, permits, signature, 0);
         assertEq(inputToken.balanceOf(hubAddr), inputAmount);
+        vm.stopPrank();
     }
 
     /**
@@ -165,12 +167,11 @@ contract OrderHubTest is BaseTest {
         bytes memory signature = buildSignature(orderRequest, user0_pk);
 
         inputToken.mint(user0, inputAmount);
-        vm.prank(user0);
+        vm.startPrank(user0);
         inputToken.approve(address(hub), inputAmount - 1);
 
-        vm.prank(user0);
-        vm.expectRevert();
-        hub.createOrder(orderRequest, permits, signature);
+        createOrderExpectRevert(orderRequest, permits, signature, 0);
+        vm.stopPrank();
     }
 
     /**
@@ -188,9 +189,9 @@ contract OrderHubTest is BaseTest {
         vm.startPrank(user0);
         inputToken.mint(user0, inputAmount);
         inputToken.approve(address(hub), inputAmount);
-        vm.expectRevert();
+
         bytes[] memory emptyPermits = new bytes[](1);
-        hub.createOrder(orderRequest, emptyPermits, signature);
+        createOrderExpectRevert(orderRequest, emptyPermits, signature, 0);
         vm.stopPrank();
     }
 
@@ -207,8 +208,8 @@ contract OrderHubTest is BaseTest {
         vm.startPrank(user0);
         inputToken.mint(user0, inputAmount);
         inputToken.approve(address(hub), inputAmount);
-        vm.expectRevert();
-        hub.createOrder(orderRequest, permits, signature);
+
+        createOrderExpectRevert(orderRequest, permits, signature, 0);
         vm.stopPrank();
     }
 
@@ -226,8 +227,8 @@ contract OrderHubTest is BaseTest {
         vm.startPrank(user0);
         inputToken.mint(user0, inputAmount);
         inputToken.approve(address(hub), inputAmount);
-        vm.expectRevert();
-        hub.createOrder(orderRequest, permits, signature);
+
+        createOrderExpectRevert(orderRequest, permits, signature, 0);
         vm.stopPrank();
     }
 
@@ -241,13 +242,12 @@ contract OrderHubTest is BaseTest {
         );
         bytes memory signature = buildSignature(orderRequest, user0_pk);
 
+        vm.startPrank(user0);
         inputToken.mint(user0, inputAmount - 1);
-        vm.prank(user0);
         inputToken.approve(address(hub), inputAmount);
 
-        vm.prank(user0);
-        vm.expectRevert();
-        hub.createOrder(orderRequest, permits, signature);
+        createOrderExpectRevert(orderRequest, permits, signature, 0);
+        vm.stopPrank();
     }
 
     /**
@@ -283,21 +283,19 @@ contract OrderHubTest is BaseTest {
         orderRequest2.nonce = orderRequest1.nonce;
         bytes memory signature2 = buildSignature(orderRequest2, user0_pk);
 
+        vm.startPrank(user0);
         inputToken.mint(user0, inputAmount1 + inputAmount2);
-        vm.prank(user0);
         inputToken.approve(address(hub), inputAmount1 + inputAmount2);
 
-        vm.startPrank(user0);
-        hub.createOrder(orderRequest1, permits, signature1);
+        createOrder(orderRequest1, permits, signature1, 0);
 
         // revert same nonce reused
-        vm.expectRevert();
-        hub.createOrder(orderRequest2, permits, signature2);
+        createOrderExpectRevert(orderRequest2, permits, signature2, 0);
 
         // recreate signature
         orderRequest2.nonce = 2;
         signature2 = buildSignature(orderRequest2, user0_pk);
-        hub.createOrder(orderRequest2, permits, signature2);
+        createOrder(orderRequest2, permits, signature2, 0);
         vm.stopPrank();
 
         assertEq(inputToken.balanceOf(address(hub)), inputAmount1 + inputAmount2);
@@ -324,13 +322,14 @@ contract OrderHubTest is BaseTest {
         vm.startPrank(user1);
         inputToken.mint(user1, inputAmount1);
         inputToken.approve(address(hub), inputAmount1);
-        hub.createOrder(orderRequest1, permits, signature1);
+
+        createOrder(orderRequest1, permits, signature1, 0);
         vm.stopPrank();
 
         vm.startPrank(user2);
         inputToken.mint(user2, inputAmount2);
         inputToken.approve(address(hub), inputAmount2);
-        hub.createOrder(orderRequest2, permits, signature2);
+        createOrder(orderRequest2, permits, signature2, 0);
         vm.stopPrank();
 
         assertEq(inputToken.balanceOf(address(hub)), inputAmount1 + inputAmount2);
@@ -346,8 +345,8 @@ contract OrderHubTest is BaseTest {
             user1, address(this), address(0), inputAmount, address(outputToken), outputAmount, 1 minutes, 5 minutes
         );
         bytes memory signature = buildSignature(orderRequest, user1_pk);
-        vm.expectRevert();
-        hub.createOrder(orderRequest, permits, signature);
+
+        createOrderExpectRevert(orderRequest, permits, signature, 0);
     }
 
     /**
@@ -368,10 +367,19 @@ contract OrderHubTest is BaseTest {
         bytes memory signature = "";
 
         inputToken.mint(address(contractUser), inputAmount);
+
         vm.prank(address(contractUser));
         inputToken.approve(address(hub), inputAmount);
 
+        vm.deal(address(contractUser), 1e18);
+
+        contractUser.setSignature(0x1626ba7a); // invalid
+        vm.expectRevert();
         contractUser.createOrder(hub, orderRequest, permits, signature);
+
+        contractUser.setSignature(0x1626ba7e); // valid
+        contractUser.createOrder(hub, orderRequest, permits, signature);
+
         assertEq(inputToken.balanceOf(address(hub)), inputAmount);
     }
 
@@ -383,35 +391,32 @@ contract OrderHubTest is BaseTest {
         Root.OrderRequest memory orderRequest = buildOrderRequest(
             user0, address(this), address(inputToken), inputAmount, address(outputToken), 1, 1 minutes, 5 minutes
         );
-
-        inputToken.mint(user0, inputAmount * 2);
-        vm.prank(user0);
-        inputToken.approve(address(hub), inputAmount * 2);
         bytes memory signature = buildSignature(orderRequest, user0_pk);
 
-        vm.prank(user0);
-        (bytes32 orderId1,) = hub.createOrder(orderRequest, permits, signature);
+        vm.startPrank(user0);
+        inputToken.mint(user0, inputAmount * 2);
+        inputToken.approve(address(hub), inputAmount * 2);
+
+        (bytes32 orderId1,,) = createOrder(orderRequest, permits, signature, 0);
         assertEq(inputToken.balanceOf(address(hub)), inputAmount);
 
         orderRequest.nonce = 2;
         signature = buildSignature(orderRequest, user0_pk);
 
-        vm.prank(user0);
-        (bytes32 orderId2, uint64 nonce) = hub.createOrder(orderRequest, permits, signature);
+        (bytes32 orderId2, uint64 nonce,) = createOrder(orderRequest, permits, signature, 0);
         assertEq(inputToken.balanceOf(address(hub)), inputAmount * 2);
         assertNotEq(orderId1, orderId2);
         vm.warp(block.timestamp + 10 minutes);
 
-        vm.prank(user0);
         hub.withdrawOrder(orderRequest.order, nonce);
         assertEq(inputToken.balanceOf(address(hub)), inputAmount);
         assertEq(inputToken.balanceOf(user0), inputAmount);
 
-        vm.prank(user0);
         vm.expectRevert();
         hub.withdrawOrder(orderRequest.order, nonce);
         assertEq(inputToken.balanceOf(address(hub)), inputAmount);
         assertEq(inputToken.balanceOf(user0), inputAmount);
+        vm.stopPrank();
     }
 
     /**
@@ -438,8 +443,7 @@ contract OrderHubTest is BaseTest {
         vm.startPrank(user1);
         inputToken.mint(user1, inputAmount);
         inputToken.approve(address(hub), inputAmount);
-        vm.expectRevert();
-        hub.createOrder(orderRequest, permits, signature);
+        createOrderExpectRevert(orderRequest, permits, signature, 0);
         vm.stopPrank();
     }
 
@@ -460,7 +464,7 @@ contract OrderHubTest is BaseTest {
         vm.startPrank(user0);
         inputToken.mint(user0, inputAmount);
         inputToken.approve(address(hub), inputAmount);
-        (, uint64 nonce) = hub.createOrder(orderRequest, permits, signature);
+        (, uint64 nonce,) = createOrder(orderRequest, permits, signature, 0);
 
         vm.warp(block.timestamp + 4 minutes);
         vm.expectRevert();
@@ -491,8 +495,7 @@ contract OrderHubTest is BaseTest {
         vm.startPrank(user0);
         inputToken.mint(user0, inputAmount);
         inputToken.approve(address(hub), inputAmount);
-        vm.expectRevert();
-        hub.createOrder(orderRequest, permits, signature);
+        createOrderExpectRevert(orderRequest, permits, signature, 0);
         vm.stopPrank();
     }
 
@@ -524,11 +527,10 @@ contract OrderHubTest is BaseTest {
         vm.prank(user0);
         inputToken.approve(address(hub), 10 * inputAmount);
 
-        hub.createOrder(orderRequest, permits, signature);
+        createOrder(orderRequest, permits, signature, 0);
         assertEq(inputToken.balanceOf(address(hub)), inputAmount);
 
-        vm.expectRevert();
-        hub.createOrder(orderRequest, permits, signature);
+        createOrderExpectRevert(orderRequest, permits, signature, 0);
         assertEq(inputToken.balanceOf(address(hub)), inputAmount);
     }
 
@@ -559,7 +561,7 @@ contract OrderHubTest is BaseTest {
         vm.prank(user0);
         vm.expectEmit(true, true, true, true);
         emit ERC721Received(address(hub), user0, 1, "");
-        hub.createOrder(orderRequest, permits, signature);
+        createOrder(orderRequest, permits, signature, 0);
 
         assertEq(inputERC721Token.balanceOf(user0), 0);
         assertEq(inputERC721Token.balanceOf(address(hub)), 1);
@@ -595,7 +597,7 @@ contract OrderHubTest is BaseTest {
         vm.prank(user0);
         vm.expectEmit(true, true, true, true);
         emit ERC1155Received(address(hub), user0, 1, 2, "");
-        hub.createOrder(orderRequest, permits, signature);
+        createOrder(orderRequest, permits, signature, 0);
 
         assertEq(inputERC1155Token.balanceOf(user0, 1), 0);
         assertEq(inputERC1155Token.balanceOf(address(hub), 1), 2);
@@ -606,7 +608,8 @@ contract OrderHubTest is BaseTest {
      */
     function testNativeTokenOrder() public {
         uint256 inputAmount = 1e18;
-        vm.deal(user0, inputAmount);
+
+        vm.deal(user0, inputAmount + 300011508);
 
         Root.Token[] memory inputs = new Root.Token[](1);
         inputs[0] = Root.Token({tokenType: Root.Type.NATIVE, tokenAddress: "", tokenId: 0, amount: inputAmount});
@@ -619,22 +622,23 @@ contract OrderHubTest is BaseTest {
 
         bytes memory signature = buildSignature(orderRequest, user0_pk);
 
-        vm.expectRevert();
-        hub.createOrder(orderRequest, permits, signature);
+        vm.startPrank(user0);
+        // should fail due to not enough gas supplied
+        createOrderExpectRevert(orderRequest, permits, signature, inputAmount - 1);
 
-        vm.prank(user0);
         uint256 initialBalance = user0.balance;
         assertEq(address(hub).balance, 0);
-        hub.createOrder{value: inputAmount}(orderRequest, permits, signature);
+        createOrder(orderRequest, permits, signature, inputAmount);
         assertEq(address(hub).balance, inputAmount);
-        assertEq(user0.balance, initialBalance - inputAmount);
         vm.stopPrank();
 
         vm.warp(block.timestamp + 5 minutes);
 
-        vm.prank(user0);
         initialBalance = user0.balance;
+
+        vm.prank(user0);
         hub.withdrawOrder(orderRequest.order, 1);
+
         assertEq(address(hub).balance, 0);
         assertEq(user0.balance, initialBalance + inputAmount);
     }
