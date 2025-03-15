@@ -8,7 +8,7 @@ import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol
 import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import {IERC721Receiver} from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 import {IERC1155Receiver} from "@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol";
-import {OAppCore, OAppReceiver, Origin} from "@layerzerolabs/oapp-evm/contracts/oapp/OApp.sol";
+import {OApp, MessagingFee, MessagingReceipt, Origin} from "@layerzerolabs/oapp-evm/contracts/oapp/OApp.sol";
 import {PermitHelper} from "./libraries/PermitHelper.sol";
 import {BytesUtils} from "./libraries/BytesUtils.sol";
 import {Validator} from "./Validator.sol";
@@ -18,15 +18,7 @@ import {Validator} from "./Validator.sol";
  * @dev Contract that stores user orders and input tokens and sends the fill message
  * @custom:security-contact security@ilayer.io
  */
-contract OrderHub is
-    Validator,
-    ReentrancyGuard,
-    OAppReceiver,
-    ERC2771Context,
-    IERC165,
-    IERC721Receiver,
-    IERC1155Receiver
-{
+contract OrderHub is Validator, ReentrancyGuard, OApp, ERC2771Context, IERC165, IERC721Receiver, IERC1155Receiver {
     mapping(bytes32 orderId => Status status) public orders;
     mapping(address user => mapping(uint64 nonce => bool used)) public requestNonces;
     uint64 public maxOrderDeadline;
@@ -54,10 +46,11 @@ contract OrderHub is
     error OrderCannotBeWithdrawn();
     error OrderCannotBeFilled();
     error OrderExpired();
+    error InsufficientGasValue();
 
     constructor(address _trustedForwarder, address _router, uint64 _maxOrderDeadline, uint64 _timeBuffer)
         Ownable(msg.sender)
-        OAppCore(_router, msg.sender)
+        OApp(_router, msg.sender)
         ERC2771Context(_trustedForwarder)
     {
         maxOrderDeadline = _maxOrderDeadline;
@@ -75,12 +68,12 @@ contract OrderHub is
     }
 
     /// @notice create off-chain order, signature must be valid
-    function createOrder(OrderRequest memory request, bytes[] memory permits, bytes memory signature)
-        external
-        payable
-        nonReentrant
-        returns (bytes32, uint64)
-    {
+    function createOrder(
+        OrderRequest memory request,
+        bytes[] memory permits,
+        bytes memory signature,
+        bytes calldata options
+    ) external payable nonReentrant returns (bytes32, uint64, MessagingReceipt memory) {
         Order memory order = request.order;
         address user = BytesUtils.bytes32ToAddress(order.user);
 
@@ -97,6 +90,8 @@ contract OrderHub is
         bytes32 orderId = getOrderId(order, orderNonce);
         orders[orderId] = Status.ACTIVE;
 
+        uint256 nativeValue = msg.value;
+
         for (uint256 i = 0; i < order.inputs.length; i++) {
             Token memory input = order.inputs[i];
 
@@ -105,12 +100,24 @@ contract OrderHub is
                 _applyPermits(permits[i], user, tokenAddress);
             }
 
+            if (input.tokenType == Type.NATIVE) {
+                // check that enough value was supplied
+                if (msg.value <= input.amount) revert InsufficientGasValue();
+
+                // subtract to the gas computation
+                nativeValue -= input.amount;
+            }
+
             _transfer(input.tokenType, user, address(this), tokenAddress, input.tokenId, input.amount);
         }
 
+        bytes memory payload = abi.encode(orderId);
+        MessagingReceipt memory receipt =
+            _lzSend(order.destinationChainEid, payload, options, MessagingFee(nativeValue, 0), payable(_msgSender()));
+
         emit OrderCreated(orderId, orderNonce, order, _msgSender());
 
-        return (orderId, orderNonce);
+        return (orderId, orderNonce, receipt);
     }
 
     function withdrawOrder(Order memory order, uint64 orderNonce) external nonReentrant {
@@ -167,7 +174,6 @@ contract OrderHub is
             || interfaceId == type(IERC1155Receiver).interfaceId;
     }
 
-    /// TODO should add retry logic?
     function _lzReceive(Origin calldata data, bytes32, bytes calldata payload, address, bytes calldata)
         internal
         override
@@ -209,6 +215,15 @@ contract OrderHub is
             abi.decode(permit, (uint256, uint256, uint8, bytes32, bytes32));
 
         PermitHelper.trustlessPermit(token, user, address(this), value, deadline, v, r, s);
+    }
+
+    function estimateFee(uint32 dstEid, bytes memory payload, bytes calldata options) public view returns (uint256) {
+        MessagingFee memory fee = _quote(dstEid, payload, options, false);
+        return fee.nativeFee;
+    }
+
+    function _payNative(uint256 _nativeFee) internal pure override returns (uint256 nativeFee) {
+        return _nativeFee;
     }
 
     function _msgSender() internal view override(ERC2771Context, Context) returns (address) {
