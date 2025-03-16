@@ -37,7 +37,6 @@ contract OrderSpoke is Root, ReentrancyGuard, OApp {
     error OrderExpired();
     error InvalidDestinationChain();
     error RestrictedToPrimaryFiller();
-    error InsufficientGasValue();
     error ExternalCallFailed();
 
     constructor(address _router) Ownable(msg.sender) OApp(_router, msg.sender) {
