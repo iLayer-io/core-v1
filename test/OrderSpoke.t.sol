@@ -295,46 +295,46 @@ contract OrderSpokeTest is BaseTest {
     }
 
     /**
-     * @notice Test filling an order with native token in output
-     * @param input The amount of input native tokens
-     * @param output The amount of output native tokens
+     * @notice Test filling an order with native token in input and output
      */
-    function testFillOrderWithNativeInputAndOutput(uint128 input, uint128 output) public {
+    function testFillOrderWithNativeInputAndOutput() public {
         address filler = user1;
-        uint256 inputAmount = uint256(input);
-        uint256 outputAmount = uint256(output);
+        uint256 inputAmount = 1e18;
+        uint256 outputAmount = 10 * 1e18;
 
         Root.Token[] memory inputs = new Root.Token[](1);
         inputs[0] = Root.Token({tokenType: Root.Type.NATIVE, tokenAddress: "", tokenId: 0, amount: inputAmount});
 
         Root.Token[] memory outputs = new Root.Token[](1);
-        outputs[0] = Root.Token({tokenType: Root.Type.NATIVE, tokenAddress: "", tokenId: 0, amount: 0});
+        outputs[0] = Root.Token({tokenType: Root.Type.NATIVE, tokenAddress: "", tokenId: 0, amount: outputAmount});
 
         Root.OrderRequest memory orderRequest =
             buildBaseOrderRequest(inputs, outputs, user0, filler, 1 minutes, 5 minutes, "", "", 0);
         bytes memory signature = buildSignature(orderRequest, user0_pk);
 
-        vm.startPrank(user0);
-        inputToken.mint(user0, inputAmount);
+        // create order
         vm.deal(user0, inputAmount + 300011508); // l0 fee
         assertEq(address(hub).balance, 0);
+        vm.prank(user0);
         (, uint64 nonce,) = createOrder(orderRequest, permits, signature, inputAmount);
         assertEq(address(hub).balance, inputAmount);
-        vm.stopPrank();
 
-        vm.startPrank(filler);
+        // fill order
         bytes32 fillerEncoded = BytesUtils.addressToBytes32(filler);
         (uint256 fee, bytes memory options) = _getSettlementL0Data(orderRequest.order, nonce, fillerEncoded);
+        uint256 extraGas = 100 ether;
+        uint256 totalGas = outputAmount + fee + extraGas;
+        vm.deal(filler, totalGas);
 
-        vm.deal(filler, outputAmount + fee);
-
+        uint256 initialBalance = user0.balance;
         assertEq(address(spoke).balance, 0);
-        spoke.fillOrder{value: fee + orderRequest.order.callValue}(orderRequest.order, nonce, fillerEncoded, 0, options);
+        vm.prank(filler);
+        spoke.fillOrder{value: totalGas}(orderRequest.order, nonce, fillerEncoded, 0, options);
         verifyPackets(aEid, BytesUtils.addressToBytes32(address(hub)));
+
         assertEq(address(spoke).balance, 0);
         assertEq(address(hub).balance, 0);
-
-        vm.stopPrank();
+        assertEq(user0.balance, initialBalance + outputAmount);
     }
 
     /**
@@ -345,6 +345,7 @@ contract OrderSpokeTest is BaseTest {
      */
     function testFillOrderWithCalldata(uint256 inputAmount, uint256 outputAmount, uint128 gasValue) public {
         address filler = user1;
+        assertEq(target.bar(), 0);
 
         Root.OrderRequest memory orderRequest = buildOrderRequest(
             user0, filler, address(inputToken), inputAmount, address(outputToken), outputAmount, 1 minutes, 5 minutes
@@ -377,6 +378,9 @@ contract OrderSpokeTest is BaseTest {
 
         validateOrderWasFilled(user0, filler, inputAmount, outputAmount);
         vm.stopPrank();
+
+        assertEq(target.bar(), 1234);
+        assertEq(address(target).balance, gasValue);
     }
 
     /**

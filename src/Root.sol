@@ -69,6 +69,10 @@ contract Root {
             } else {
                 // simply check the gas value sent is enough
                 if (msg.value < amount) revert NativeTransferFailed();
+                if (to != address(this)) {
+                    (bool success,) = to.call{value: amount}("");
+                    if (!success) revert NativeTransferFailed();
+                }
             }
         } else if (tokenType == Type.ERC721) {
             IERC721(token).safeTransferFrom(from, to, id);

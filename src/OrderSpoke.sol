@@ -72,15 +72,16 @@ contract OrderSpoke is Root, ReentrancyGuard, OApp {
         _validateOrder(order, orderId);
         orders[orderId] = OrderStatus.FILLED;
 
-        _transferFunds(order);
+        uint256 value = _transferFunds(order);
         if (order.callData.length > 0) {
+            if (value < order.callValue) revert InsufficientGasValue();
+            value -= order.callValue;
             _callHook(order, maxGas);
         }
 
         bytes memory payload = abi.encode(order, orderNonce, fundingWallet);
-        MessagingReceipt memory receipt = _lzSend(
-            order.sourceChainEid, payload, options, MessagingFee(msg.value - order.callValue, 0), payable(msg.sender)
-        );
+        MessagingReceipt memory receipt =
+            _lzSend(order.sourceChainEid, payload, options, MessagingFee(value, 0), payable(msg.sender));
 
         emit OrderFilled(orderId, order, msg.sender, receipt);
 
@@ -107,14 +108,26 @@ contract OrderSpoke is Root, ReentrancyGuard, OApp {
         if (!successful) revert ExternalCallFailed();
     }
 
-    function _transferFunds(Order memory order) internal {
+    function _transferFunds(Order memory order) internal returns (uint256) {
+        uint256 nativeValue = msg.value;
+
         address to = BytesUtils.bytes32ToAddress(order.user);
         for (uint256 i = 0; i < order.outputs.length; i++) {
             Token memory output = order.outputs[i];
 
+            if (output.tokenType == Type.NATIVE) {
+                // check that enough value was supplied
+                if (msg.value <= output.amount) revert InsufficientGasValue();
+
+                // subtract to the gas computation
+                nativeValue -= output.amount;
+            }
+
             address tokenAddress = BytesUtils.bytes32ToAddress(output.tokenAddress);
             _transfer(output.tokenType, msg.sender, to, tokenAddress, output.tokenId, output.amount);
         }
+
+        return nativeValue;
     }
 
     function _lzReceive(Origin calldata data, bytes32, bytes calldata payload, address, bytes calldata)
