@@ -53,6 +53,7 @@ contract Root {
 
     error NativeTransferFailed();
     error UnsupportedTransfer();
+    error InsufficientGasValue();
 
     function getOrderId(Order memory order, uint256 nonce) public pure returns (bytes32) {
         return keccak256(abi.encode(nonce, order));
@@ -67,8 +68,11 @@ contract Root {
                 (bool success,) = to.call{value: amount}("");
                 if (!success) revert NativeTransferFailed();
             } else {
-                // simply check the gas value sent is enough
-                if (msg.value < amount) revert NativeTransferFailed();
+                if (msg.value < amount) revert InsufficientGasValue();
+                if (to != address(this)) {
+                    (bool success,) = to.call{value: amount}("");
+                    if (!success) revert NativeTransferFailed();
+                }
             }
         } else if (tokenType == Type.ERC721) {
             IERC721(token).safeTransferFrom(from, to, id);
