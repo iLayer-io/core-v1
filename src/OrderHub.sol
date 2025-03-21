@@ -25,8 +25,8 @@ contract OrderHub is Validator, ReentrancyGuard, OApp, ERC2771Context, IERC165, 
     uint64 public timeBuffer;
     uint64 public nonce;
 
-    event TimeBufferUpdated(uint64 oldTimeBufferVal, uint64 newTimeBufferVal);
-    event MaxOrderDeadlineUpdated(uint64 oldDeadline, uint64 newDeadline);
+    event TimeBufferUpdated(uint64 indexed oldTimeBufferVal, uint64 indexed newTimeBufferVal);
+    event MaxOrderDeadlineUpdated(uint64 indexed oldDeadline, uint64 indexed newDeadline);
     event OrderCreated(bytes32 indexed orderId, uint64 nonce, Order order, address indexed caller);
     event OrderWithdrawn(bytes32 indexed orderId, address indexed caller);
     event OrderSettled(bytes32 indexed orderId, Order indexed order);
@@ -47,11 +47,13 @@ contract OrderHub is Validator, ReentrancyGuard, OApp, ERC2771Context, IERC165, 
     error OrderCannotBeFilled();
     error OrderExpired();
 
-    constructor(address _owner, address _router, address _trustedForwarder, uint64 _maxOrderDeadline, uint64 _timeBuffer)
-        Ownable(_owner)
-        OApp(_router, _owner)
-        ERC2771Context(_trustedForwarder)
-    {
+    constructor(
+        address _owner,
+        address _router,
+        address _trustedForwarder,
+        uint64 _maxOrderDeadline,
+        uint64 _timeBuffer
+    ) Ownable(_owner) OApp(_router, _owner) ERC2771Context(_trustedForwarder) {
         maxOrderDeadline = _maxOrderDeadline;
         timeBuffer = _timeBuffer;
     }
@@ -101,7 +103,7 @@ contract OrderHub is Validator, ReentrancyGuard, OApp, ERC2771Context, IERC165, 
 
             if (input.tokenType == Type.NATIVE) {
                 // check that enough value was supplied
-                if (msg.value <= input.amount) revert InsufficientGasValue();
+                if (nativeValue <= input.amount) revert InsufficientGasValue();
 
                 // subtract to the gas computation
                 nativeValue -= input.amount;
@@ -202,11 +204,13 @@ contract OrderHub is Validator, ReentrancyGuard, OApp, ERC2771Context, IERC165, 
             revert InvalidDestinationEndpoint();
         }
         if (order.inputs.length != permits.length) revert InvalidOrderInputApprovals();
-        if (order.deadline > block.timestamp + maxOrderDeadline) revert InvalidDeadline();
         if (order.primaryFillerDeadline > order.deadline) revert OrderDeadlinesMismatch();
-        if (block.timestamp >= order.deadline) revert OrderExpired();
-        if (block.timestamp >= order.primaryFillerDeadline) revert OrderPrimaryFillerExpired();
         if (order.sourceChainEid != endpoint.eid()) revert InvalidSourceChain();
+
+        uint256 timestamp = block.timestamp;
+        if (timestamp >= order.deadline) revert OrderExpired();
+        if (timestamp >= order.primaryFillerDeadline) revert OrderPrimaryFillerExpired();
+        if (order.deadline > timestamp + maxOrderDeadline) revert InvalidDeadline();
     }
 
     function _applyPermits(bytes memory permit, address user, address token) internal {
