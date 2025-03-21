@@ -7,7 +7,7 @@ import {OrderHub} from "../src/OrderHub.sol";
 import {OrderSpoke} from "../src/OrderSpoke.sol";
 
 contract DeployToMainnetScript is Script {
-    bytes32 salt = keccak256("ilayerfhgfjh");
+    bytes32 salt = keccak256("ilayer");
 
     address owner = vm.envAddress("OWNER");
     uint256 ownerPrivateKey = vm.envUint("OWNER_PRIVATE_KEY");
