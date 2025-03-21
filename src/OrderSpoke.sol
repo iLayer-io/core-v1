@@ -44,7 +44,7 @@ contract OrderSpoke is Root, ReentrancyGuard, OApp {
     error RestrictedToPrimaryFiller();
     error ExternalCallFailed();
 
-    constructor(address _router) Ownable(msg.sender) OApp(_router, msg.sender) {
+    constructor(address _owner, address _router) Ownable(_owner) OApp(_router, _owner) {
         executor = new Executor();
     }
 

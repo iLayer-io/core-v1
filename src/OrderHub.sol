@@ -47,9 +47,9 @@ contract OrderHub is Validator, ReentrancyGuard, OApp, ERC2771Context, IERC165, 
     error OrderCannotBeFilled();
     error OrderExpired();
 
-    constructor(address _trustedForwarder, address _router, uint64 _maxOrderDeadline, uint64 _timeBuffer)
-        Ownable(msg.sender)
-        OApp(_router, msg.sender)
+    constructor(address _owner, address _router, address _trustedForwarder, uint64 _maxOrderDeadline, uint64 _timeBuffer)
+        Ownable(_owner)
+        OApp(_router, _owner)
         ERC2771Context(_trustedForwarder)
     {
         maxOrderDeadline = _maxOrderDeadline;

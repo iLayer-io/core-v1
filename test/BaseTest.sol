@@ -87,9 +87,9 @@ contract BaseTest is TestHelperOz5 {
         setUpEndpoints(2, LibraryType.UltraLightNode);
 
         hub = OrderHub(
-            _deployOApp(type(OrderHub).creationCode, abi.encode(address(0), address(endpoints[aEid]), 1 days, 0))
+            _deployOApp(type(OrderHub).creationCode, abi.encode(address(this), address(endpoints[aEid]), address(0), 1 days, 0))
         );
-        spoke = OrderSpoke(_deployOApp(type(OrderSpoke).creationCode, abi.encode(address(endpoints[bEid]))));
+        spoke = OrderSpoke(_deployOApp(type(OrderSpoke).creationCode, abi.encode(address(this), address(endpoints[bEid]))));
 
         address[] memory oapps = new address[](2);
         oapps[0] = address(hub);
