@@ -30,7 +30,7 @@ contract OrderSpoke is Root, ReentrancyGuard, OApp {
     mapping(bytes32 => OrderStatus) public orders;
     uint256 public fee;
 
-    event FeeUpdated(uint256 oldFee, uint256 newFee);
+    event FeeUpdated(uint256 indexed oldFee, uint256 indexed newFee);
     event PendingOrderReceived(bytes32 indexed orderId, uint32 indexed spokeEid);
     event OrderFilled(bytes32 indexed orderId, Order indexed order, address indexed caller, MessagingReceipt receipt);
     event TokenSweep(
@@ -140,7 +140,7 @@ contract OrderSpoke is Root, ReentrancyGuard, OApp {
 
             if (output.tokenType == Type.NATIVE) {
                 // check that enough value was supplied
-                if (msg.value <= output.amount) revert InsufficientGasValue();
+                if (nativeValue <= output.amount) revert InsufficientGasValue();
 
                 // subtract to the gas computation
                 nativeValue -= output.amount;
