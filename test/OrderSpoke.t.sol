@@ -8,7 +8,6 @@ import {BytesUtils} from "../src/libraries/BytesUtils.sol";
 import {BaseTest} from "./BaseTest.sol";
 import {MessagingReceipt} from "@layerzerolabs/lz-evm-protocol-v2/contracts/interfaces/ILayerZeroEndpointV2.sol";
 import {MockERC721} from "./mocks/MockERC721.sol";
-import "forge-std/console.sol";
 
 error RestrictedToPrimaryFiller();
 error OrderExpired();
@@ -72,6 +71,53 @@ contract OrderSpokeTest is BaseTest {
 
         MessagingReceipt memory receipt = fillOrder(orderRequest.order, nonce, 0, filler);
         validateOrderWasFilled(user0, filler, inputAmount, outputAmount);
+        vm.stopPrank();
+
+        assertEq(receipt.nonce, nonce);
+    }
+
+    /**
+     * @notice Tests a base order with a fee
+     */
+    function testFillOrderWithFee(uint256 inputAmount, uint256 outputAmount, uint16 fee) public {
+        fee = uint16(bound(fee, 0, 10_000));
+        outputAmount = bound(outputAmount, 0, type(uint256).max / 10_000);
+
+        address filler = user1;
+        Root.OrderRequest memory orderRequest = buildOrderRequest(
+            user0, filler, address(inputToken), inputAmount, address(outputToken), outputAmount, 1 minutes, 5 minutes
+        );
+        bytes memory signature = buildSignature(orderRequest, user0_pk);
+
+        spoke.setFee(fee);
+
+        vm.startPrank(user0);
+        inputToken.mint(user0, inputAmount);
+        inputToken.approve(address(hub), inputAmount);
+        (bytes32 orderID, uint64 nonce,) = createOrder(orderRequest, permits, signature, 0);
+        vm.stopPrank();
+
+        assertEq(inputToken.balanceOf(address(hub)), inputAmount, "Input token not transferred to Hub");
+        assertTrue(spoke.orders(orderID) == OrderSpoke.OrderStatus.PENDING);
+
+        vm.startPrank(filler);
+        outputToken.mint(filler, outputAmount);
+        outputToken.approve(address(spoke), outputAmount);
+
+        MessagingReceipt memory receipt = fillOrder(orderRequest.order, nonce, 0, filler);
+
+        uint256 feeAmount = outputAmount * fee / spoke.FEE_RESOLUTION();
+        uint256 outputWithoutFee = outputAmount - feeAmount;
+
+        assertEq(inputToken.balanceOf(address(hub)), 0, "OrderHub contract is not empty");
+        assertEq(outputToken.balanceOf(address(hub)), 0, "OrderHub contract is not empty");
+        assertEq(inputToken.balanceOf(user0), 0, "User still holds input tokens");
+        assertEq(outputToken.balanceOf(user0), outputWithoutFee, "User didn't receive output tokens");
+        assertEq(inputToken.balanceOf(filler), inputAmount, "Filler didn't receive input tokens");
+        assertEq(outputToken.balanceOf(filler), 0, "Filler still holds output tokens");
+        assertEq(inputToken.balanceOf(address(spoke)), 0, "OrderSpoke contract is not empty");
+        assertEq(outputToken.balanceOf(address(spoke)), feeAmount, "OrderSpoke contract is not empty");
+
         vm.stopPrank();
 
         assertEq(receipt.nonce, nonce);

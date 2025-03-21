@@ -24,15 +24,20 @@ contract OrderSpoke is Root, ReentrancyGuard, OApp {
     }
 
     uint16 public constant MAX_RETURNDATA_COPY_SIZE = 32;
+    uint256 public constant FEE_RESOLUTION = 10_000;
+
     Executor public immutable executor;
     mapping(bytes32 => OrderStatus) public orders;
+    uint256 public fee;
 
+    event FeeUpdated(uint256 oldFee, uint256 newFee);
     event PendingOrderReceived(bytes32 indexed orderId, uint32 indexed spokeEid);
     event OrderFilled(bytes32 indexed orderId, Order indexed order, address indexed caller, MessagingReceipt receipt);
     event TokenSweep(
         Type indexed tokenType, uint256 tokenId, address indexed token, address indexed to, uint256 amount
     );
 
+    error InvalidFeeValue();
     error OrderAlreadyFilled();
     error OrderExpired();
     error InvalidDestinationChain();
@@ -41,6 +46,13 @@ contract OrderSpoke is Root, ReentrancyGuard, OApp {
 
     constructor(address _router) Ownable(msg.sender) OApp(_router, msg.sender) {
         executor = new Executor();
+    }
+
+    function setFee(uint256 newFee) external onlyOwner {
+        if (newFee > FEE_RESOLUTION) revert InvalidFeeValue();
+
+        emit FeeUpdated(fee, newFee);
+        fee = newFee;
     }
 
     function sweep(Type tokenType, uint256 tokenId, address token, address to, uint256 amount)
@@ -53,9 +65,13 @@ contract OrderSpoke is Root, ReentrancyGuard, OApp {
         emit TokenSweep(tokenType, tokenId, token, to, amount);
     }
 
-    function estimateFee(uint32 dstEid, bytes memory payload, bytes calldata options) public view returns (uint256) {
-        MessagingFee memory fee = _quote(dstEid, payload, options, false);
-        return fee.nativeFee;
+    function estimateBridgingFee(uint32 dstEid, bytes memory payload, bytes calldata options)
+        public
+        view
+        returns (uint256)
+    {
+        MessagingFee memory _fee = _quote(dstEid, payload, options, false);
+        return _fee.nativeFee;
     }
 
     function fillOrder(
@@ -113,6 +129,14 @@ contract OrderSpoke is Root, ReentrancyGuard, OApp {
         address to = BytesUtils.bytes32ToAddress(order.user);
         for (uint256 i = 0; i < order.outputs.length; i++) {
             Token memory output = order.outputs[i];
+            uint256 amount = output.amount;
+            uint256 feeAmount = 0;
+            address tokenAddress;
+
+            if (output.tokenType == Type.NATIVE || output.tokenType == Type.ERC20) {
+                feeAmount = amount * fee / FEE_RESOLUTION;
+                amount -= feeAmount;
+            }
 
             if (output.tokenType == Type.NATIVE) {
                 // check that enough value was supplied
@@ -120,10 +144,17 @@ contract OrderSpoke is Root, ReentrancyGuard, OApp {
 
                 // subtract to the gas computation
                 nativeValue -= output.amount;
+            } else {
+                tokenAddress = BytesUtils.bytes32ToAddress(output.tokenAddress);
             }
 
-            address tokenAddress = BytesUtils.bytes32ToAddress(output.tokenAddress);
-            _transfer(output.tokenType, msg.sender, to, tokenAddress, output.tokenId, output.amount);
+            // main transfer
+            _transfer(output.tokenType, msg.sender, to, tokenAddress, output.tokenId, amount);
+
+            // fee transfer
+            if (feeAmount > 0) {
+                _transfer(output.tokenType, msg.sender, address(this), tokenAddress, output.tokenId, feeAmount);
+            }
         }
 
         return nativeValue;

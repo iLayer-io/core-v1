@@ -216,7 +216,11 @@ contract OrderHub is Validator, ReentrancyGuard, OApp, ERC2771Context, IERC165, 
         PermitHelper.trustlessPermit(token, user, address(this), value, deadline, v, r, s);
     }
 
-    function estimateFee(uint32 dstEid, bytes memory payload, bytes calldata options) public view returns (uint256) {
+    function estimateBridgingFee(uint32 dstEid, bytes memory payload, bytes calldata options)
+        public
+        view
+        returns (uint256)
+    {
         MessagingFee memory fee = _quote(dstEid, payload, options, false);
         return fee.nativeFee;
     }
