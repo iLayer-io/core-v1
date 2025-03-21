@@ -111,7 +111,7 @@ contract BaseTest is TestHelperOz5 {
     function _getCreationL0Data() internal view returns (uint256 fee, bytes memory options) {
         options = OptionsBuilder.newOptions().addExecutorLzReceiveOption(1e8, 0);
         bytes memory payload = abi.encode(bytes32(0)); // pass a random bytes32 field
-        fee = hub.estimateFee(bEid, payload, options);
+        fee = hub.estimateBridgingFee(bEid, payload, options);
     }
 
     /**
@@ -129,7 +129,7 @@ contract BaseTest is TestHelperOz5 {
     {
         options = OptionsBuilder.newOptions().addExecutorLzReceiveOption(1e8, 0);
         bytes memory payload = abi.encode(order, orderNonce, hubFundingWallet);
-        fee = spoke.estimateFee(aEid, payload, options);
+        fee = spoke.estimateBridgingFee(aEid, payload, options);
     }
 
     /**

@@ -32,7 +32,7 @@ contract SmartContractUser {
     ) external {
         bytes memory options = OptionsBuilder.newOptions().addExecutorLzReceiveOption(1e8, 0);
         bytes memory payload = abi.encode(bytes32(0));
-        uint256 fee = orderhub.estimateFee(bEid, payload, options);
+        uint256 fee = orderhub.estimateBridgingFee(bEid, payload, options);
         orderhub.createOrder{value: fee}(request, permits, _signature, options);
     }
 
