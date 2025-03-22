@@ -27,31 +27,20 @@ contract DeployToMainnetScript is Script {
         CREATE3Factory factory = new CREATE3Factory();
 
         address hubAddr = factory.deploy(
-          salt,
-          abi.encodePacked(
-              type(OrderHub).creationCode,
-              abi.encode(owner, router, trustedForwarder, maxOrderDeadline, withdrawTimeBuffer)
-          )
+            salt,
+            abi.encodePacked(
+                type(OrderHub).creationCode,
+                abi.encode(owner, router, trustedForwarder, maxOrderDeadline, withdrawTimeBuffer)
+            )
         );
-        
-        address spokeAddr = factory.deploy(
-          salt,
-          abi.encodePacked(
-              type(OrderSpoke).creationCode,
-              abi.encode(owner, router)
-          )
-        );
+
+        address spokeAddr =
+            factory.deploy(salt, abi.encodePacked(type(OrderSpoke).creationCode, abi.encode(owner, router)));
 
         OrderHub hub = OrderHub(hubAddr);
         OrderSpoke spoke = OrderSpoke(spokeAddr);
-        hub.setPeer(
-          eId,
-          addressToBytes32(spokeAddr)
-        );
-        spoke.setPeer(
-          eId,
-          addressToBytes32(hubAddr)
-        );
+        hub.setPeer(eId, addressToBytes32(spokeAddr));
+        spoke.setPeer(eId, addressToBytes32(hubAddr));
 
         vm.stopBroadcast();
     }
