@@ -114,7 +114,7 @@ contract OrderHub is Validator, ReentrancyGuard, OApp, ERC2771Context, IERC165, 
 
         bytes memory payload = abi.encode(orderId);
         MessagingReceipt memory receipt =
-            _lzSend(order.destinationChainEid, payload, options, MessagingFee(nativeValue, 0), payable(_msgSender()));
+            _lzSend(order.destinationChainEid, payload, options, MessagingFee(nativeValue, 0), payable(msg.sender));
 
         emit OrderCreated(orderId, orderNonce, order, _msgSender());
 

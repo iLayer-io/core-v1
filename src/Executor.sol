@@ -13,7 +13,7 @@ contract Executor {
 
     address public immutable owner;
 
-    event ContractCallExecuted(address indexed target, uint256 value, bytes data);
+    event ContractCallExecuted(address indexed target, uint256 indexed value);
 
     error RestrictedToOwner();
 
@@ -30,7 +30,7 @@ contract Executor {
 
         (bool res,) = target.excessivelySafeCall(gas, value, maxCopy, data);
 
-        emit ContractCallExecuted(target, value, data);
+        emit ContractCallExecuted(target, value);
 
         return res;
     }
