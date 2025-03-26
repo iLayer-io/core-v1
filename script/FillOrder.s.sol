@@ -14,7 +14,7 @@ contract FillOrderScript is Script {
     uint32 destEid = uint32(vm.envUint("DEST_EID"));
     address user = vm.envAddress("USER");
     address filler = vm.envAddress("FILLER");
-    uint256 fillerPrivateKey = vm.envUint("FILLEr_PRIVATE_KEY");
+    uint256 fillerPrivateKey = vm.envUint("FILLER_PRIVATE_KEY");
     address fromToken = vm.envAddress("FROM_TOKEN");
     uint256 inputAmount = vm.envUint("INPUT_AMOUNT");
     address toToken = vm.envAddress("TO_TOKEN");

@@ -7,8 +7,10 @@ import {CREATE3Factory} from "create3-factory/src/CREATE3Factory.sol";
 import {OrderHub} from "../src/OrderHub.sol";
 import {OrderSpoke} from "../src/OrderSpoke.sol";
 
-contract DeployToMainnetScript is Script {
-    bytes32 salt = keccak256("ilayer");
+contract DeployScript is Script {
+    bytes32 factorySalt = keccak256("ilayer-factory");
+    bytes32 hubSalt = keccak256("ilayer-hub");
+    bytes32 spokeSalt = keccak256("ilayer-spoke");
 
     address owner = vm.envAddress("OWNER");
     uint256 ownerPrivateKey = vm.envUint("OWNER_PRIVATE_KEY");
@@ -24,10 +26,9 @@ contract DeployToMainnetScript is Script {
         uint64 withdrawTimeBuffer = uint64(buffer);
         uint64 maxOrderDeadline = uint64(maxDeadline);
 
-        CREATE3Factory factory = new CREATE3Factory();
-
+        CREATE3Factory factory = new CREATE3Factory{salt: factorySalt}();
         address hubAddr = factory.deploy(
-            salt,
+            hubSalt,
             abi.encodePacked(
                 type(OrderHub).creationCode,
                 abi.encode(owner, router, trustedForwarder, maxOrderDeadline, withdrawTimeBuffer)
@@ -35,7 +36,7 @@ contract DeployToMainnetScript is Script {
         );
 
         address spokeAddr =
-            factory.deploy(salt, abi.encodePacked(type(OrderSpoke).creationCode, abi.encode(owner, router)));
+            factory.deploy(spokeSalt, abi.encodePacked(type(OrderSpoke).creationCode, abi.encode(owner, router)));
 
         console2.log("Hub address: ", hubAddr);
         console2.log("Spoke address: ", spokeAddr);
