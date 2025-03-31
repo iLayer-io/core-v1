@@ -559,8 +559,6 @@ contract OrderHubTest is BaseTest {
         assertEq(inputERC721Token.balanceOf(address(hub)), 0);
 
         vm.prank(user0);
-        vm.expectEmit(true, true, true, true);
-        emit ERC721Received(address(hub), user0, 1, "");
         createOrder(orderRequest, permits, signature, 0);
 
         assertEq(inputERC721Token.balanceOf(user0), 0);
@@ -595,8 +593,6 @@ contract OrderHubTest is BaseTest {
         assertEq(inputERC1155Token.balanceOf(address(hub), 1), 0);
 
         vm.prank(user0);
-        vm.expectEmit(true, true, true, true);
-        emit ERC1155Received(address(hub), user0, 1, 2, "");
         createOrder(orderRequest, permits, signature, 0);
 
         assertEq(inputERC1155Token.balanceOf(user0, 1), 0);

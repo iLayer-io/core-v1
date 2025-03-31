@@ -1,0 +1,17 @@
+appName: "iLayer-core"
+version: "1.0.0"
+
+global:
+  owner:
+  ownerPrivateKey:
+  trustedForwarder:
+  maxDeadline:
+  withdrawTimeBuffer:
+  salt:
+
+chains:
+  - name:
+    chainId:
+    rpc:
+    endpointId:
+    router:
