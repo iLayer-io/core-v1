@@ -70,8 +70,12 @@ library OrderHelper {
     ) public view returns (Root.OrderRequest memory) {
         (Root.Token[] memory inputs, Root.Token[] memory outputs) =
             formatTokenStructs(fromToken, inputAmount, toToken, outputAmount);
+
+        bytes32 usr = BytesUtils.addressToBytes32(user);
+
         Root.Order memory order = Root.Order({
-            user: BytesUtils.addressToBytes32(user),
+            user: usr,
+            recipient: usr,
             filler: BytesUtils.addressToBytes32(filler),
             inputs: inputs,
             outputs: outputs,

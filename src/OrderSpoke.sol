@@ -126,7 +126,7 @@ contract OrderSpoke is Root, ReentrancyGuard, OApp {
     function _transferFunds(Order memory order) internal returns (uint256) {
         uint256 nativeValue = msg.value;
 
-        address to = BytesUtils.bytes32ToAddress(order.user);
+        address to = BytesUtils.bytes32ToAddress(order.recipient);
         for (uint256 i = 0; i < order.outputs.length; i++) {
             Token memory output = order.outputs[i];
             uint256 amount = output.amount;
