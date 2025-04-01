@@ -1,15 +1,13 @@
-![ilayer](header.png)
-
-<h1 align="center">iLayer Core</h1>
+<h1 align="center">iLayer V1</h1>
 
 <div align="center">
 
 ![Solidity](https://img.shields.io/badge/Solidity-0.8.24-e6e6e6?style=for-the-badge&logo=solidity&logoColor=black)
 
 [![Discord](https://img.shields.io/badge/Discord-7289DA?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/xxx)
-[![Twitter](https://img.shields.io/badge/Twitter-1DA1F2?style=for-the-badge&logo=twitter&logoColor=white)](https://twitter.com/ilayer_network)
-[![Website](https://img.shields.io/badge/Website-E34F26?style=for-the-badge&logo=Google-chrome&logoColor=white)](https://ilayer.network/)
-[![Docs](https://img.shields.io/badge/Docs-7B36ED?style=for-the-badge&logo=gitbook&logoColor=white)](https://docs.ilayer.network/)
+[![Twitter](https://img.shields.io/badge/Twitter-1DA1F2?style=for-the-badge&logo=twitter&logoColor=white)](https://twitter.com/iLayer_io)
+[![Website](https://img.shields.io/badge/Website-E34F26?style=for-the-badge&logo=Google-chrome&logoColor=white)](https://ilayer.io/)
+[![Docs](https://img.shields.io/badge/Docs-7B36ED?style=for-the-badge&logo=gitbook&logoColor=white)](https://docs.ilayer.io/)
 
 </div>
 
@@ -20,9 +18,9 @@ This repository contains the core smart contracts for iLayer V1.
 ## Key Features
 
 - Swap tokens from one chain to the other in a cheap and fast way.
-- Bridge tokens without needing to have gas on the destination chain.
+- Bridge multiple tokens without needing to have gas on the destination chain.
 - Access DeFi protocols without using their complex UX with one click.
-- Build cross-chain protocols leveraging the iLayer infrastructure.
+- Easily build cross-chain interactions leveraging the iLayer infrastructure.
 
 ## Security
 
@@ -37,11 +35,11 @@ Smart contracts have been tested with the following automated tools:
 - [halmos](https://github.com/a16z/halmos)
 - [olympix](https://www.olympix.ai)
 
-If you find bugs, please report them to *info@ilayer.network*. You may be eligible for our bug bounty program that covers the deployed smart contracts.
+If you find bugs, please report them to *info@ilayer.io*. You may be eligible for our bug bounty program that covers the deployed smart contracts.
 
 ## Documentation
 
-You can read more about how it works on our [documentation website](https://docs.ilayer.network/) or on the [official whitepaper](https://github.com/ilayer-network/whitepaper/blob/master/ilayer-whitepaper.pdf).
+You can read more about how it works on our [documentation website](https://docs.ilayer.io/) or on the [official whitepaper](https://github.com/ilayer-network/whitepaper/blob/master/ilayer-whitepaper.pdf).
 
 ## Licensing
 
@@ -50,7 +48,7 @@ The Solidity files licensed under the BUSL-1.1 have appropriate SPDX headers.
 
 ## Disclaimer
 
-This application is provided "as is" and "with all faults." Me as developer makes no representations or warranties of
+This application is provided "as is" and "with all faults." We as developers makes no representations or warranties of
 any kind concerning the safety, suitability, lack of viruses, inaccuracies, typographical errors, or other harmful
 components of this software. There are inherent dangers in the use of any software, and you are solely responsible for
 determining whether this software product is compatible with your equipment and other software installed on your
