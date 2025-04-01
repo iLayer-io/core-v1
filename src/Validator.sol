@@ -14,6 +14,7 @@ contract Validator is Root, EIP712 {
         abi.encodePacked(
             "Order(",
             "bytes32 user,",
+            "bytes32 recipient,",
             "bytes32 filler,",
             "Token[] inputs,",
             "Token[] outputs,",
@@ -39,6 +40,7 @@ contract Validator is Root, EIP712 {
             ")",
             "Order(",
             "bytes32 user,",
+            "bytes32 recipient,",
             "bytes32 filler,",
             "Token[] inputs,",
             "Token[] outputs,",
@@ -76,16 +78,14 @@ contract Validator is Root, EIP712 {
     }
 
     function hashOrder(Order memory order) public pure returns (bytes32) {
-        bytes32 inputsHash = hashTokenArray(order.inputs);
-        bytes32 outputsHash = hashTokenArray(order.outputs);
-
         return keccak256(
             abi.encode(
                 ORDER_TYPEHASH,
                 order.user, // bytes32 user
+                order.recipient, // bytes32 recipient
                 order.filler, // bytes32 filler
-                inputsHash, // bytes32 hashed "Token[] inputs"
-                outputsHash, // bytes32 hashed "Token[] outputs"
+                hashTokenArray(order.inputs), // bytes32 hashed "Token[] inputs"
+                hashTokenArray(order.outputs), // bytes32 hashed "Token[] outputs"
                 order.sourceChainEid, // uint32 sourceChainEid
                 order.destinationChainEid, // uint32 destinationChainEid
                 order.sponsored, // bool sponsored
