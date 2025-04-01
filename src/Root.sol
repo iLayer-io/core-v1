@@ -32,6 +32,7 @@ contract Root {
 
     struct Order {
         bytes32 user;
+        bytes32 recipient;
         bytes32 filler;
         Token[] inputs;
         Token[] outputs;

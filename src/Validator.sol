@@ -14,6 +14,7 @@ contract Validator is Root, EIP712 {
         abi.encodePacked(
             "Order(",
             "bytes32 user,",
+            "bytes32 recipient,",
             "bytes32 filler,",
             "Token[] inputs,",
             "Token[] outputs,",
@@ -39,6 +40,7 @@ contract Validator is Root, EIP712 {
             ")",
             "Order(",
             "bytes32 user,",
+            "bytes32 recipient,",
             "bytes32 filler,",
             "Token[] inputs,",
             "Token[] outputs,",
@@ -54,6 +56,13 @@ contract Validator is Root, EIP712 {
             "Token(uint8 tokenType,bytes32 tokenAddress,uint256 tokenId,uint256 amount)"
         )
     );
+
+    struct OrderHashParams {
+        Order order;
+        bytes32 inputsHash;
+        bytes32 outputsHash;
+        bytes32 callData;
+    }
 
     constructor() EIP712("iLayer", "1") {}
 
@@ -75,31 +84,38 @@ contract Validator is Root, EIP712 {
         return keccak256(abi.encodePacked(tokenHashes));
     }
 
-    function hashOrder(Order memory order) public pure returns (bytes32) {
-        bytes32 inputsHash = hashTokenArray(order.inputs);
-        bytes32 outputsHash = hashTokenArray(order.outputs);
-
-        return keccak256(
-            abi.encode(
-                ORDER_TYPEHASH,
-                order.user, // bytes32 user
-                order.filler, // bytes32 filler
-                inputsHash, // bytes32 hashed "Token[] inputs"
-                outputsHash, // bytes32 hashed "Token[] outputs"
-                order.sourceChainEid, // uint32 sourceChainEid
-                order.destinationChainEid, // uint32 destinationChainEid
-                order.sponsored, // bool sponsored
-                order.primaryFillerDeadline, // uint64 primaryFillerDeadline
-                order.deadline, // uint64 deadline
-                order.callRecipient, // bytes32 callRecipient
-                keccak256(order.callData), // hashed bytes callData
-                order.callValue // uint256 callValue
-            )
+    function hashOrder(OrderHashParams memory params) public pure returns (bytes memory) {
+        return abi.encode(
+            ORDER_TYPEHASH,
+            params.order.user,
+            params.order.recipient,
+            params.order.filler,
+            params.inputsHash,
+            params.outputsHash,
+            params.order.sourceChainEid,
+            params.order.destinationChainEid,
+            params.order.sponsored,
+            params.order.primaryFillerDeadline,
+            params.order.deadline,
+            params.order.callRecipient,
+            params.callData,
+            params.order.callValue
         );
     }
 
     function hashOrderRequest(OrderRequest memory request) public pure returns (bytes32) {
-        bytes32 orderHash = hashOrder(request.order);
+        bytes32 inputsHash = hashTokenArray(request.order.inputs);
+        bytes32 outputsHash = hashTokenArray(request.order.outputs);
+        bytes32 callData = keccak256(request.order.callData);
+
+        OrderHashParams memory params = OrderHashParams({
+            order: request.order,
+            inputsHash: inputsHash,
+            outputsHash: outputsHash,
+            callData: callData
+        });
+
+        bytes32 orderHash = keccak256(hashOrder(params));
 
         return keccak256(
             abi.encode(

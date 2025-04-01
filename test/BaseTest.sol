@@ -154,8 +154,10 @@ contract BaseTest is TestHelperOz5 {
         bytes memory callData,
         uint256 callValue
     ) public returns (Root.OrderRequest memory) {
+        bytes32 usr = BytesUtils.addressToBytes32(user);
         Root.Order memory order = Root.Order({
-            user: BytesUtils.addressToBytes32(user),
+            user: usr,
+            recipient: usr,
             filler: BytesUtils.addressToBytes32(filler),
             inputs: inputs,
             outputs: outputs,
@@ -210,6 +212,7 @@ contract BaseTest is TestHelperOz5 {
 
         Root.Order memory order = Root.Order({
             user: user,
+            recipient: user,
             filler: filler,
             inputs: inputs,
             outputs: outputs,
@@ -266,6 +269,7 @@ contract BaseTest is TestHelperOz5 {
 
         Root.Order memory order = Root.Order({
             user: user,
+            recipient: user,
             filler: filler,
             inputs: inputs,
             outputs: outputs,
@@ -324,6 +328,7 @@ contract BaseTest is TestHelperOz5 {
 
         Root.Order memory order = Root.Order({
             user: user,
+            recipient: user,
             filler: filler,
             inputs: inputs,
             outputs: outputs,

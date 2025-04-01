@@ -29,7 +29,7 @@ contract OrderHub is Validator, ReentrancyGuard, OApp, ERC2771Context, IERC165, 
     event MaxOrderDeadlineUpdated(uint64 indexed oldDeadline, uint64 indexed newDeadline);
     event OrderCreated(bytes32 indexed orderId, uint64 nonce, Order order, address indexed caller);
     event OrderWithdrawn(bytes32 indexed orderId, address indexed caller);
-    event OrderSettled(bytes32 indexed orderId, Order indexed order);
+    event OrderSettled(bytes32 indexed orderId, Order order);
     event ERC721Received(address operator, address from, uint256 tokenId, bytes data);
     event ERC1155Received(address operator, address from, uint256 id, uint256 value, bytes data);
     event ERC1155BatchReceived(address operator, address from, uint256[] ids, uint256[] values, bytes data);
