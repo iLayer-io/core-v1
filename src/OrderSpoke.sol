@@ -32,7 +32,7 @@ contract OrderSpoke is Root, ReentrancyGuard, OApp {
 
     event FeeUpdated(uint256 indexed oldFee, uint256 indexed newFee);
     event PendingOrderReceived(bytes32 indexed orderId, uint32 indexed spokeEid);
-    event OrderFilled(bytes32 indexed orderId, Order indexed order, address indexed caller, MessagingReceipt receipt);
+    event OrderFilled(bytes32 indexed orderId, Order order, address indexed caller, MessagingReceipt receipt);
     event TokenSweep(
         Type indexed tokenType, uint256 tokenId, address indexed token, address indexed to, uint256 amount
     );
@@ -99,7 +99,6 @@ contract OrderSpoke is Root, ReentrancyGuard, OApp {
             _lzSend(order.sourceChainEid, payload, options, MessagingFee(value, 0), payable(msg.sender));
 
         emit OrderFilled(orderId, order, msg.sender, receipt);
-
         return receipt;
     }
 
@@ -126,7 +125,7 @@ contract OrderSpoke is Root, ReentrancyGuard, OApp {
     function _transferFunds(Order memory order) internal returns (uint256) {
         uint256 nativeValue = msg.value;
 
-        address to = BytesUtils.bytes32ToAddress(order.user);
+        address to = BytesUtils.bytes32ToAddress(order.recipient);
         for (uint256 i = 0; i < order.outputs.length; i++) {
             Token memory output = order.outputs[i];
             uint256 amount = output.amount;

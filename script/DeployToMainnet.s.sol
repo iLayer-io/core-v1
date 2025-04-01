@@ -10,8 +10,7 @@ import {OrderSpoke} from "../src/OrderSpoke.sol";
 contract DeployToMainnetScript is Script {
     bytes32 salt = keccak256(abi.encodePacked(vm.envString("SALT")));
     bytes32 hubSalt = keccak256(abi.encodePacked("hub-", vm.envString("SALT")));
-    bytes32 spokeSalt =
-        keccak256(abi.encodePacked("spoke-", vm.envString("SALT")));
+    bytes32 spokeSalt = keccak256(abi.encodePacked("spoke-", vm.envString("SALT")));
 
     address owner = vm.envAddress("OWNER");
     uint256 ownerPrivateKey = vm.envUint("OWNER_PRIVATE_KEY");
@@ -31,23 +30,12 @@ contract DeployToMainnetScript is Script {
             hubSalt,
             abi.encodePacked(
                 type(OrderHub).creationCode,
-                abi.encode(
-                    owner,
-                    router,
-                    trustedForwarder,
-                    uint64(maxDeadline),
-                    uint64(buffer)
-                )
+                abi.encode(owner, router, trustedForwarder, uint64(maxDeadline), uint64(buffer))
             )
         );
 
-        address spokeAddr = factory.deploy(
-            spokeSalt,
-            abi.encodePacked(
-                type(OrderSpoke).creationCode,
-                abi.encode(owner, router)
-            )
-        );
+        address spokeAddr =
+            factory.deploy(spokeSalt, abi.encodePacked(type(OrderSpoke).creationCode, abi.encode(owner, router)));
 
         console2.log("hub: ", hubAddr);
         console2.log("spoke: ", spokeAddr);
