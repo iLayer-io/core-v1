@@ -82,6 +82,7 @@ contract Validator is Root, EIP712 {
             abi.encode(
                 ORDER_TYPEHASH,
                 order.user, // bytes32 user
+                order.recipient, // bytes32 recipient
                 order.filler, // bytes32 filler
                 hashTokenArray(order.inputs), // bytes32 hashed "Token[] inputs"
                 hashTokenArray(order.outputs), // bytes32 hashed "Token[] outputs"
