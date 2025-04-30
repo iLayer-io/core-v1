@@ -23,8 +23,8 @@
     "@layerzerolabs/test-devtools-evm-foundry": "^6.0.0",
     "@layerzerolabs/toolbox-foundry": "^0.1.10",
     "@nomad-xyz/excessively-safe-call": "github:nomad-xyz/ExcessivelySafeCall",
-    "@openzeppelin/contracts": "^5.2.0",
-    "@openzeppelin/contracts-upgradeable": "^5.2.0",
+    "@openzeppelin/contracts": "^5.3.0",
+    "@openzeppelin/contracts-upgradeable": "^5.3.0",
     "solhint": "^5.0.5",
     "solidity-bytes-utils": "^0.8.2"
   },
