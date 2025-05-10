@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.24;
 
+import {IRouter} from "../../src/interfaces/IRouter.sol";
 import {BytesUtils} from "../../src/libraries/BytesUtils.sol";
 import {Root} from "../../src/Root.sol";
 import {OrderHub} from "../../src/OrderHub.sol";
@@ -351,9 +352,8 @@ contract OrderHubTest is BaseTest {
 
     /**
      * @notice Test order creation via a smart contract user.
-     * @todo fixme
      */
-    /*function testCreateOrderSmartContract(uint256 inputAmount) public {
+    function testCreateOrderSmartContract(uint256 inputAmount) public {
         vm.assume(inputAmount > 0);
         Root.OrderRequest memory orderRequest = buildOrderRequest(
             address(contractUser),
@@ -374,15 +374,17 @@ contract OrderHubTest is BaseTest {
 
         vm.deal(address(contractUser), 1e18);
 
+        (uint256 fee, bytes memory options) = _getCreationLzData();
+
         contractUser.setSignature(0x1626ba7a); // invalid
         vm.expectRevert();
-        contractUser.createOrder(hub, orderRequest, permits, signature);
+        contractUser.createOrder(hub, orderRequest, permits, signature, options, fee, IRouter.Bridge.LAYERZERO);
 
         contractUser.setSignature(0x1626ba7e); // valid
-        contractUser.createOrder(hub, orderRequest, permits, signature);
+        contractUser.createOrder(hub, orderRequest, permits, signature, options, fee, IRouter.Bridge.LAYERZERO);
 
         assertEq(inputToken.balanceOf(address(hub)), inputAmount);
-    }*/
+    }
 
     /**
      * @notice Test withdrawing multiple identical orders.

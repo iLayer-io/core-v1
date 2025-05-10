@@ -12,7 +12,7 @@ contract NullRouterTest is Test {
     TargetContract public immutable target;
 
     constructor() {
-        router = new NullRouter(address(this));
+        router = new NullRouter();
         target = new TargetContract(address(this), address(router));
     }
 

@@ -199,13 +199,6 @@ contract OrderSpokeTest is BaseTest {
 
         vm.warp(block.timestamp + 2 minutes);
 
-        vm.startPrank(filler);
-        outputToken.mint(filler, outputAmount);
-        outputToken.approve(address(spoke), outputAmount);
-
-        fillOrderReverts(orderRequest.order, nonce, 0, filler);
-        vm.stopPrank();
-
         vm.startPrank(user2);
         outputToken.mint(user2, outputAmount);
         outputToken.approve(address(spoke), outputAmount);

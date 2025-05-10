@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.24;
 
-import {Root} from "../src/Root.sol";
-import {OrderHub} from "../src/OrderHub.sol";
-import {OrderSpoke} from "../src/OrderSpoke.sol";
-import {BytesUtils} from "../src/libraries/BytesUtils.sol";
-import {BaseTest} from "./BaseTest.sol";
 import {MessagingReceipt} from "@layerzerolabs/lz-evm-protocol-v2/contracts/interfaces/ILayerZeroEndpointV2.sol";
-import {MockERC721} from "./mocks/MockERC721.sol";
+import {IRouter} from "../../src/interfaces/IRouter.sol";
+import {BytesUtils} from "../../src/libraries/BytesUtils.sol";
+import {Root} from "../../src/Root.sol";
+import {OrderHub} from "../../src/OrderHub.sol";
+import {OrderSpoke} from "../../src/OrderSpoke.sol";
+import {MockERC721} from "../mocks/MockERC721.sol";
+import {BaseTest} from "./BaseTest.sol";
 
 error RestrictedToPrimaryFiller();
 error OrderExpired();
@@ -48,7 +49,32 @@ contract OrderSpokeTest is BaseTest {
      * @param inputAmount The amount of input tokens.
      * @param outputAmount The amount of output tokens.
      */
-testFillOrderBase
+    function testFillOrderBase(uint256 inputAmount, uint256 outputAmount) public {
+        address filler = user1;
+
+        Root.OrderRequest memory orderRequest = buildOrderRequest(
+            user0, filler, address(inputToken), inputAmount, address(outputToken), outputAmount, 1 minutes, 5 minutes
+        );
+        bytes memory signature = buildSignature(orderRequest, user0_pk);
+
+        vm.startPrank(user0);
+        inputToken.mint(user0, inputAmount);
+        inputToken.approve(address(hub), inputAmount);
+        (bytes32 orderID, uint64 nonce) = createOrder(orderRequest, permits, signature, 0);
+        vm.stopPrank();
+
+        assertEq(inputToken.balanceOf(address(hub)), inputAmount, "Input token not transferred to Hub");
+        assertTrue(spoke.orders(orderID) == OrderSpoke.OrderStatus.PENDING, "Order not registered by the spoke");
+
+        vm.startPrank(filler);
+        outputToken.mint(filler, outputAmount);
+        outputToken.approve(address(spoke), outputAmount);
+
+        fillOrder(orderRequest.order, nonce, 0, filler);
+        vm.stopPrank();
+
+        validateOrderWasFilled(user0, filler, inputAmount, outputAmount);
+    }
 
     /**
      * @notice Tests a base order with a fee
@@ -68,7 +94,7 @@ testFillOrderBase
         vm.startPrank(user0);
         inputToken.mint(user0, inputAmount);
         inputToken.approve(address(hub), inputAmount);
-        (bytes32 orderID, uint64 nonce,) = createOrder(orderRequest, permits, signature, 0);
+        (bytes32 orderID, uint64 nonce) = createOrder(orderRequest, permits, signature, 0);
         vm.stopPrank();
 
         assertEq(inputToken.balanceOf(address(hub)), inputAmount, "Input token not transferred to Hub");
@@ -78,7 +104,7 @@ testFillOrderBase
         outputToken.mint(filler, outputAmount);
         outputToken.approve(address(spoke), outputAmount);
 
-        MessagingReceipt memory receipt = fillOrder(orderRequest.order, nonce, 0, filler);
+        fillOrder(orderRequest.order, nonce, 0, filler);
 
         uint256 feeAmount = outputAmount * fee / spoke.FEE_RESOLUTION();
         uint256 outputWithoutFee = outputAmount - feeAmount;
@@ -93,8 +119,6 @@ testFillOrderBase
         assertEq(outputToken.balanceOf(address(spoke)), feeAmount, "OrderSpoke contract is not empty");
 
         vm.stopPrank();
-
-        assertEq(receipt.nonce, nonce);
     }
 
     /**
@@ -116,7 +140,7 @@ testFillOrderBase
 
         vm.startPrank(user0);
         inputToken.approve(address(hub), inputAmount);
-        (, uint64 nonce,) = createOrder(orderRequest, permits, signature, 0);
+        (, uint64 nonce) = createOrder(orderRequest, permits, signature, 0);
         vm.stopPrank();
 
         assertEq(inputToken.balanceOf(address(hub)), inputAmount, "Input token not transferred to Hub");
@@ -152,7 +176,7 @@ testFillOrderBase
 
         vm.startPrank(user0);
         inputToken.approve(address(hub), inputAmount);
-        (, uint64 nonce,) = createOrder(orderRequest, permits, signature, 0);
+        (, uint64 nonce) = createOrder(orderRequest, permits, signature, 0);
         vm.stopPrank();
 
         assertEq(inputToken.balanceOf(address(hub)), inputAmount, "Input token not transferred to Hub");
@@ -187,7 +211,7 @@ testFillOrderBase
 
         vm.startPrank(user0);
         inputToken.approve(address(hub), inputAmount);
-        (, uint64 nonce,) = createOrder(orderRequest, permits, signature, 0);
+        (, uint64 nonce) = createOrder(orderRequest, permits, signature, 0);
         vm.stopPrank();
 
         vm.warp(block.timestamp + 6 minutes);
@@ -221,7 +245,7 @@ testFillOrderBase
 
         vm.startPrank(user0);
         inputToken.approve(address(hub), inputAmount);
-        (, uint64 nonce,) = createOrder(orderRequest, permits, signature, 0);
+        (, uint64 nonce) = createOrder(orderRequest, permits, signature, 0);
         vm.stopPrank();
 
         vm.warp(block.timestamp + 2 minutes);
@@ -260,7 +284,7 @@ testFillOrderBase
         vm.startPrank(user0);
         inputToken.mint(user0, inputAmount);
         inputToken.approve(address(hub), inputAmount);
-        (, uint64 nonce,) = createOrder(orderRequest, permits, signature, 0);
+        (, uint64 nonce) = createOrder(orderRequest, permits, signature, 0);
         vm.stopPrank();
 
         vm.startPrank(filler);
@@ -276,9 +300,9 @@ testFillOrderBase
         outputToken.approve(address(spoke), outputAmount);
 
         bytes32 fillerEncoded = BytesUtils.addressToBytes32(filler);
-        (uint256 fee, bytes memory options) = _getSettlementL0Data(orderRequest.order, nonce, fillerEncoded);
+        (uint256 fee, bytes memory options) = _getSettlementLzData(orderRequest.order, nonce, fillerEncoded);
         vm.expectRevert();
-        spoke.fillOrder{value: fee}(orderRequest.order, nonce, fillerEncoded, 0, options);
+        spoke.fillOrder{value: fee}(orderRequest.order, nonce, fillerEncoded, 0, IRouter.Bridge.LAYERZERO, options);
         vm.stopPrank();
     }
 
@@ -299,7 +323,7 @@ testFillOrderBase
         vm.startPrank(user0);
         inputToken.mint(user0, inputAmount);
         inputToken.approve(address(hub), inputAmount);
-        (, uint64 nonce,) = createOrder(orderRequest, permits, signature, 0);
+        (, uint64 nonce) = createOrder(orderRequest, permits, signature, 0);
         vm.stopPrank();
 
         uint256 insufficientAmount = outputAmount - 1e17;
@@ -336,12 +360,12 @@ testFillOrderBase
         vm.deal(user0, inputAmount + 300011508); // l0 fee
         assertEq(address(hub).balance, 0);
         vm.prank(user0);
-        (, uint64 nonce,) = createOrder(orderRequest, permits, signature, inputAmount);
+        (, uint64 nonce) = createOrder(orderRequest, permits, signature, inputAmount);
         assertEq(address(hub).balance, inputAmount);
 
         // fill order
         bytes32 fillerEncoded = BytesUtils.addressToBytes32(filler);
-        (uint256 fee, bytes memory options) = _getSettlementL0Data(orderRequest.order, nonce, fillerEncoded);
+        (uint256 fee, bytes memory options) = _getSettlementLzData(orderRequest.order, nonce, fillerEncoded);
         uint256 extraGas = 100 ether;
         uint256 totalGas = outputAmount + fee + extraGas;
         vm.deal(filler, totalGas);
@@ -349,7 +373,7 @@ testFillOrderBase
         uint256 initialBalance = user0.balance;
         assertEq(address(spoke).balance, 0);
         vm.prank(filler);
-        spoke.fillOrder{value: totalGas}(orderRequest.order, nonce, fillerEncoded, 0, options);
+        spoke.fillOrder{value: totalGas}(orderRequest.order, nonce, fillerEncoded, 0, IRouter.Bridge.LAYERZERO, options);
         verifyPackets(aEid, BytesUtils.addressToBytes32(address(hub)));
 
         assertEq(address(spoke).balance, 0);
@@ -378,7 +402,7 @@ testFillOrderBase
         vm.startPrank(user0);
         inputToken.mint(user0, inputAmount);
         inputToken.approve(address(hub), inputAmount);
-        (, uint64 nonce,) = createOrder(orderRequest, permits, signature, 0);
+        (, uint64 nonce) = createOrder(orderRequest, permits, signature, 0);
         vm.stopPrank();
 
         vm.startPrank(filler);
@@ -386,13 +410,18 @@ testFillOrderBase
         outputToken.approve(address(spoke), outputAmount);
 
         bytes32 fillerEncoded = BytesUtils.addressToBytes32(filler);
-        (uint256 fee, bytes memory options) = _getSettlementL0Data(orderRequest.order, nonce, fillerEncoded);
+        (uint256 fee, bytes memory options) = _getSettlementLzData(orderRequest.order, nonce, fillerEncoded);
 
         uint256 extraGas = 0.01 ether;
         uint256 totalGas = orderRequest.order.callValue + fee + extraGas;
         vm.deal(filler, totalGas);
         spoke.fillOrder{value: totalGas}(
-            orderRequest.order, nonce, fillerEncoded, orderRequest.order.callValue + extraGas, options
+            orderRequest.order,
+            nonce,
+            fillerEncoded,
+            orderRequest.order.callValue + extraGas,
+            IRouter.Bridge.LAYERZERO,
+            options
         );
         verifyPackets(aEid, BytesUtils.addressToBytes32(address(hub)));
 
@@ -444,7 +473,7 @@ testFillOrderBase
         Root.OrderRequest memory orderRequest = buildOrderRequest(
             user0, user1, address(inputToken), inputAmount, address(outputToken), outputAmount, 1 minutes, 5 minutes
         );
-        orderRequest.order.destinationChainEid = 5;
+        orderRequest.order.destinationChainId = 5;
         bytes memory signature = buildSignature(orderRequest, user0_pk);
 
         vm.startPrank(user0);
@@ -459,9 +488,9 @@ testFillOrderBase
 
         uint64 nonce = 1;
         bytes32 fillerEncoded = BytesUtils.addressToBytes32(filler);
-        (uint256 fee, bytes memory options) = _getSettlementL0Data(orderRequest.order, nonce, fillerEncoded);
+        (uint256 fee, bytes memory options) = _getSettlementLzData(orderRequest.order, nonce, fillerEncoded);
         vm.expectRevert();
-        spoke.fillOrder{value: fee}(orderRequest.order, nonce, fillerEncoded, 0, options);
+        spoke.fillOrder{value: fee}(orderRequest.order, nonce, fillerEncoded, 0, IRouter.Bridge.LAYERZERO, options);
         vm.stopPrank();
     }
 }

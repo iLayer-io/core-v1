@@ -30,5 +30,8 @@
   },
   "engines": {
     "node": ">=18.16.0"
+  },
+  "dependencies": {
+    "@axelar-network/axelar-gmp-sdk-solidity": "^6.0.6"
   }
 }

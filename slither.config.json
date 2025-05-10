@@ -5,6 +5,7 @@
     "ds-test/=node_modules/@layerzerolabs/toolbox-foundry/lib/ds-test",
     "forge-std/=node_modules/@layerzerolabs/toolbox-foundry/lib/forge-std",
     "@layerzerolabs/=node_modules/@layerzerolabs/",
+    "@axelar-network/=node_modules/@axelar-network/axelar-gmp-sdk-solidity/",
     "@openzeppelin/=node_modules/@openzeppelin/",
     "@nomad-xyz/excessively-safe-call/=node_modules/@nomad-xyz/excessively-safe-call",
     "solidity-bytes-utils/=node_modules/solidity-bytes-utils/",

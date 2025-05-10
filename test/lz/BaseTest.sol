@@ -419,6 +419,7 @@ contract BaseTest is TestHelperOz5 {
         bytes32 fillerEncoded = BytesUtils.addressToBytes32(filler);
         (uint256 fee, bytes memory options) = _getSettlementLzData(order, nonce, fillerEncoded);
 
+        vm.chainId(bEid);
         spoke.fillOrder{value: fee + order.callValue}(
             order, nonce, fillerEncoded, maxGas, IRouter.Bridge.LAYERZERO, options
         );

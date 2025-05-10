@@ -68,7 +68,7 @@ contract BaseTest is Test {
         vm.label(address(inputERC1155Token), "INPUT ERC1155 TOKEN");
         vm.label(address(outputToken), "OUTPUT TOKEN");
 
-        router = new NullRouter(address(this));
+        router = new NullRouter();
         hub = new OrderHub(address(this), address(router), address(0), 1 days, 0);
         spoke = new OrderSpoke(address(this), address(router));
 
