@@ -40,9 +40,8 @@ contract DeployToMainnetScript is Script {
         console2.log("hub: ", hubAddr);
         console2.log("spoke: ", spokeAddr);
 
-        OrderHub hub = OrderHub(hubAddr);
-        OrderSpoke spoke = OrderSpoke(spokeAddr);
-
+        /*
+        @todo fix it
         for (uint256 i = 0; i < remoteCount; i++) {
             uint256 remoteEndpoint;
 
@@ -55,6 +54,7 @@ contract DeployToMainnetScript is Script {
             hub.setPeer(uint32(remoteEndpoint), addressToBytes32(spokeAddr));
             spoke.setPeer(uint32(remoteEndpoint), addressToBytes32(hubAddr));
         }
+        */
 
         vm.stopBroadcast();
     }

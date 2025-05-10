@@ -7,11 +7,13 @@ import {Root} from "../src/Root.sol";
 import {OrderHub} from "../src/OrderHub.sol";
 import {OrderSpoke} from "../src/OrderSpoke.sol";
 import {OrderHelper} from "../src/libraries/OrderHelper.sol";
-import {MockRouter} from "../test/mocks/MockRouter.sol";
+import {IRouter} from "../src/interfaces/IRouter.sol";
 
 contract FillOrderScript is Script {
-    uint32 sourceEid = uint32(vm.envUint("SOURCE_EID"));
-    uint32 destEid = uint32(vm.envUint("DEST_EID"));
+    address router = vm.envAddress("ROUTER");
+    uint256 bridge = vm.envUint("BRIDGE");
+    uint32 sourceChain = uint32(vm.envUint("SOURCE_CHAIN"));
+    uint32 destChain = uint32(vm.envUint("DEST_CHAIN"));
     address user = vm.envAddress("USER");
     address filler = vm.envAddress("FILLER");
     uint256 fillerPrivateKey = vm.envUint("FILLER_PRIVATE_KEY");
@@ -29,8 +31,8 @@ contract FillOrderScript is Script {
         vm.startBroadcast(fillerPrivateKey);
 
         OrderHub.OrderRequest memory orderRequest = OrderHelper.buildOrderRequest(
-            sourceEid,
-            destEid,
+            sourceChain,
+            destChain,
             user,
             filler,
             fromToken,
@@ -40,7 +42,16 @@ contract FillOrderScript is Script {
             primaryFillerDeadlineOffset,
             deadlineOffset
         );
-        OrderHelper.fillOrder(OrderSpoke(spokeAddr), sourceEid, orderRequest.order, nonce, maxGas, filler);
+        OrderHelper.fillOrder(
+            router,
+            OrderSpoke(spokeAddr),
+            sourceChain,
+            orderRequest.order,
+            nonce,
+            maxGas,
+            filler,
+            IRouter.Bridge(bridge)
+        );
 
         vm.stopBroadcast();
     }

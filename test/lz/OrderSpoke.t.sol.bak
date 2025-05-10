@@ -1,49 +1,58 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.24;
 
-import {IRouter} from "../src/interfaces/IRouter.sol";
-import {BytesUtils} from "../src/libraries/BytesUtils.sol";
 import {Root} from "../src/Root.sol";
 import {OrderHub} from "../src/OrderHub.sol";
 import {OrderSpoke} from "../src/OrderSpoke.sol";
-import {MockERC721} from "./mocks/MockERC721.sol";
-import {TargetContract} from "./mocks/TargetContract.sol";
+import {BytesUtils} from "../src/libraries/BytesUtils.sol";
 import {BaseTest} from "./BaseTest.sol";
+import {MessagingReceipt} from "@layerzerolabs/lz-evm-protocol-v2/contracts/interfaces/ILayerZeroEndpointV2.sol";
+import {MockERC721} from "./mocks/MockERC721.sol";
 
+error RestrictedToPrimaryFiller();
+error OrderExpired();
+error OrderCannotBeFilled();
+error OrderPrimaryFillerExpired();
+
+event TokenSweep(address indexed token, address indexed caller, uint256 amount);
+
+/**
+ * @title TargetContract
+ * @notice A simple contract used for testing purposes.
+ */
+contract TargetContract {
+    uint256 public bar = 0;
+
+    /**
+     * @notice Sets the value of bar.
+     * @param val The new value for bar.
+     */
+    function foo(uint256 val) external payable {
+        bar = val;
+    }
+}
+
+/**
+ * @title OrderSpokeTest
+ * @notice Contains tests for order filling, including various edge cases.
+ */
 contract OrderSpokeTest is BaseTest {
     TargetContract public immutable target;
 
     constructor() BaseTest() {
-        target = new TargetContract(address(this), address(router));
+        target = new TargetContract();
     }
 
-    function testFillOrderBase(uint256 inputAmount, uint256 outputAmount) public {
-        address filler = user1;
+    /**
+     * @notice Tests filling an order for an ERC20 token swap.
+     * @param inputAmount The amount of input tokens.
+     * @param outputAmount The amount of output tokens.
+     */
+testFillOrderBase
 
-        Root.OrderRequest memory orderRequest = buildOrderRequest(
-            user0, filler, address(inputToken), inputAmount, address(outputToken), outputAmount, 1 minutes, 5 minutes
-        );
-        bytes memory signature = buildSignature(orderRequest, user0_pk);
-
-        vm.startPrank(user0);
-        inputToken.mint(user0, inputAmount);
-        inputToken.approve(address(hub), inputAmount);
-        (bytes32 orderID, uint64 nonce) = createOrder(orderRequest, permits, signature, 0);
-        vm.stopPrank();
-
-        assertEq(inputToken.balanceOf(address(hub)), inputAmount, "Input token not transferred to Hub");
-        assertTrue(spoke.orders(orderID) == OrderSpoke.OrderStatus.PENDING);
-
-        vm.startPrank(filler);
-        outputToken.mint(filler, outputAmount);
-        outputToken.approve(address(spoke), outputAmount);
-
-        fillOrder(orderRequest.order, nonce, 0, filler);
-        vm.stopPrank();
-
-        validateOrderWasFilled(user0, filler, inputAmount, outputAmount);
-    }
-
+    /**
+     * @notice Tests a base order with a fee
+     */
     function testFillOrderWithFee(uint256 inputAmount, uint256 outputAmount, uint16 fee) public {
         fee = uint16(bound(fee, 0, 10_000));
         outputAmount = bound(outputAmount, 0, type(uint256).max / 10_000);
@@ -59,7 +68,7 @@ contract OrderSpokeTest is BaseTest {
         vm.startPrank(user0);
         inputToken.mint(user0, inputAmount);
         inputToken.approve(address(hub), inputAmount);
-        (bytes32 orderID, uint64 nonce) = createOrder(orderRequest, permits, signature, 0);
+        (bytes32 orderID, uint64 nonce,) = createOrder(orderRequest, permits, signature, 0);
         vm.stopPrank();
 
         assertEq(inputToken.balanceOf(address(hub)), inputAmount, "Input token not transferred to Hub");
@@ -69,7 +78,7 @@ contract OrderSpokeTest is BaseTest {
         outputToken.mint(filler, outputAmount);
         outputToken.approve(address(spoke), outputAmount);
 
-        fillOrder(orderRequest.order, nonce, 0, filler);
+        MessagingReceipt memory receipt = fillOrder(orderRequest.order, nonce, 0, filler);
 
         uint256 feeAmount = outputAmount * fee / spoke.FEE_RESOLUTION();
         uint256 outputWithoutFee = outputAmount - feeAmount;
@@ -84,8 +93,13 @@ contract OrderSpokeTest is BaseTest {
         assertEq(outputToken.balanceOf(address(spoke)), feeAmount, "OrderSpoke contract is not empty");
 
         vm.stopPrank();
+
+        assertEq(receipt.nonce, nonce);
     }
 
+    /**
+     * @notice Tests filling an order with an ERC721 token as the output.
+     */
     function testFillOrderWithERC721Output() public {
         address filler = user1;
         uint256 inputAmount = 1 ether;
@@ -102,7 +116,7 @@ contract OrderSpokeTest is BaseTest {
 
         vm.startPrank(user0);
         inputToken.approve(address(hub), inputAmount);
-        (, uint64 nonce) = createOrder(orderRequest, permits, signature, 0);
+        (, uint64 nonce,) = createOrder(orderRequest, permits, signature, 0);
         vm.stopPrank();
 
         assertEq(inputToken.balanceOf(address(hub)), inputAmount, "Input token not transferred to Hub");
@@ -118,6 +132,9 @@ contract OrderSpokeTest is BaseTest {
         vm.stopPrank();
     }
 
+    /**
+     * @notice Tests that filling an order with an invalid filler reverts.
+     */
     /// forge-config: default.allow_internal_expect_revert = true
     function testFillOrderWithInvalidFiller() public {
         uint256 inputAmount = 1e18;
@@ -135,7 +152,7 @@ contract OrderSpokeTest is BaseTest {
 
         vm.startPrank(user0);
         inputToken.approve(address(hub), inputAmount);
-        (, uint64 nonce) = createOrder(orderRequest, permits, signature, 0);
+        (, uint64 nonce,) = createOrder(orderRequest, permits, signature, 0);
         vm.stopPrank();
 
         assertEq(inputToken.balanceOf(address(hub)), inputAmount, "Input token not transferred to Hub");
@@ -145,10 +162,15 @@ contract OrderSpokeTest is BaseTest {
         vm.startPrank(invalidFiller);
         outputToken.approve(address(spoke), outputAmount);
 
-        fillOrderReverts(orderRequest.order, nonce, 0, invalidFiller);
+        vm.expectRevert();
+        vm.expectRevert(RestrictedToPrimaryFiller.selector);
+        fillOrder(orderRequest.order, nonce, 0, invalidFiller);
         vm.stopPrank();
     }
 
+    /**
+     * @notice Tests that filling an order after its deadline reverts.
+     */
     /// forge-config: default.allow_internal_expect_revert = true
     function testFillOrderWithExpiredDeadline() public {
         uint256 inputAmount = 1e18;
@@ -165,7 +187,7 @@ contract OrderSpokeTest is BaseTest {
 
         vm.startPrank(user0);
         inputToken.approve(address(hub), inputAmount);
-        (, uint64 nonce) = createOrder(orderRequest, permits, signature, 0);
+        (, uint64 nonce,) = createOrder(orderRequest, permits, signature, 0);
         vm.stopPrank();
 
         vm.warp(block.timestamp + 6 minutes);
@@ -174,10 +196,15 @@ contract OrderSpokeTest is BaseTest {
         outputToken.mint(filler, outputAmount);
         outputToken.approve(address(spoke), outputAmount);
 
-        fillOrderReverts(orderRequest.order, nonce, 0, filler);
+        vm.expectRevert();
+        vm.expectRevert(OrderExpired.selector);
+        fillOrder(orderRequest.order, nonce, 0, filler);
         vm.stopPrank();
     }
 
+    /**
+     * @notice Tests that filling an order after the primary filler deadline reverts for the original filler and works for another.
+     */
     /// forge-config: default.allow_internal_expect_revert = true
     function testFillOrderWithExpiredPrimaryFillerDeadline() public {
         uint256 inputAmount = 1e18;
@@ -194,7 +221,7 @@ contract OrderSpokeTest is BaseTest {
 
         vm.startPrank(user0);
         inputToken.approve(address(hub), inputAmount);
-        (, uint64 nonce) = createOrder(orderRequest, permits, signature, 0);
+        (, uint64 nonce,) = createOrder(orderRequest, permits, signature, 0);
         vm.stopPrank();
 
         vm.warp(block.timestamp + 2 minutes);
@@ -203,7 +230,9 @@ contract OrderSpokeTest is BaseTest {
         outputToken.mint(filler, outputAmount);
         outputToken.approve(address(spoke), outputAmount);
 
-        fillOrderReverts(orderRequest.order, nonce, 0, filler);
+        vm.expectRevert();
+        vm.expectRevert(OrderCannotBeFilled.selector);
+        fillOrder(orderRequest.order, nonce, 0, filler);
         vm.stopPrank();
 
         vm.startPrank(user2);
@@ -214,6 +243,9 @@ contract OrderSpokeTest is BaseTest {
         vm.stopPrank();
     }
 
+    /**
+     * @notice Tests that filling an already filled order reverts.
+     */
     /// forge-config: default.allow_internal_expect_revert = true
     function testFillOrderWithOrderAlreadyFilled() public {
         uint256 inputAmount = 1 ether;
@@ -228,7 +260,7 @@ contract OrderSpokeTest is BaseTest {
         vm.startPrank(user0);
         inputToken.mint(user0, inputAmount);
         inputToken.approve(address(hub), inputAmount);
-        (, uint64 nonce) = createOrder(orderRequest, permits, signature, 0);
+        (, uint64 nonce,) = createOrder(orderRequest, permits, signature, 0);
         vm.stopPrank();
 
         vm.startPrank(filler);
@@ -243,10 +275,16 @@ contract OrderSpokeTest is BaseTest {
         outputToken.mint(filler, outputAmount);
         outputToken.approve(address(spoke), outputAmount);
 
-        fillOrderReverts(orderRequest.order, nonce, 0, filler);
+        bytes32 fillerEncoded = BytesUtils.addressToBytes32(filler);
+        (uint256 fee, bytes memory options) = _getSettlementL0Data(orderRequest.order, nonce, fillerEncoded);
+        vm.expectRevert();
+        spoke.fillOrder{value: fee}(orderRequest.order, nonce, fillerEncoded, 0, options);
         vm.stopPrank();
     }
 
+    /**
+     * @notice Tests that filling an order with insufficient output token amount reverts.
+     */
     /// forge-config: default.allow_internal_expect_revert = true
     function testFillOrderWithInsufficientAmount() public {
         uint256 inputAmount = 1e18;
@@ -261,7 +299,7 @@ contract OrderSpokeTest is BaseTest {
         vm.startPrank(user0);
         inputToken.mint(user0, inputAmount);
         inputToken.approve(address(hub), inputAmount);
-        (, uint64 nonce) = createOrder(orderRequest, permits, signature, 0);
+        (, uint64 nonce,) = createOrder(orderRequest, permits, signature, 0);
         vm.stopPrank();
 
         uint256 insufficientAmount = outputAmount - 1e17;
@@ -270,10 +308,15 @@ contract OrderSpokeTest is BaseTest {
         outputToken.mint(filler, insufficientAmount);
         outputToken.approve(address(spoke), insufficientAmount);
 
-        fillOrderReverts(orderRequest.order, nonce, 0, filler);
+        vm.expectRevert();
+        vm.expectRevert(OrderCannotBeFilled.selector);
+        fillOrder(orderRequest.order, nonce, 0, filler);
         vm.stopPrank();
     }
 
+    /**
+     * @notice Test filling an order with native token in input and output
+     */
     function testFillOrderWithNativeInputAndOutput() public {
         address filler = user1;
         uint256 inputAmount = 1e18;
@@ -293,25 +336,33 @@ contract OrderSpokeTest is BaseTest {
         vm.deal(user0, inputAmount + 300011508); // l0 fee
         assertEq(address(hub).balance, 0);
         vm.prank(user0);
-        (, uint64 nonce) = createOrder(orderRequest, permits, signature, inputAmount);
+        (, uint64 nonce,) = createOrder(orderRequest, permits, signature, inputAmount);
         assertEq(address(hub).balance, inputAmount);
 
         // fill order
         bytes32 fillerEncoded = BytesUtils.addressToBytes32(filler);
+        (uint256 fee, bytes memory options) = _getSettlementL0Data(orderRequest.order, nonce, fillerEncoded);
         uint256 extraGas = 100 ether;
-        uint256 totalGas = outputAmount + extraGas;
+        uint256 totalGas = outputAmount + fee + extraGas;
         vm.deal(filler, totalGas);
 
         uint256 initialBalance = user0.balance;
         assertEq(address(spoke).balance, 0);
         vm.prank(filler);
-        spoke.fillOrder{value: totalGas}(orderRequest.order, nonce, fillerEncoded, 0, IRouter.Bridge.NULL, "");
+        spoke.fillOrder{value: totalGas}(orderRequest.order, nonce, fillerEncoded, 0, options);
+        verifyPackets(aEid, BytesUtils.addressToBytes32(address(hub)));
 
         assertEq(address(spoke).balance, 0);
         assertEq(address(hub).balance, 0);
         assertEq(user0.balance, initialBalance + outputAmount);
     }
 
+    /**
+     * @notice Tests filling an order that includes callData.
+     * @param inputAmount The amount of input tokens.
+     * @param outputAmount The amount of output tokens.
+     * @param gasValue The amount of gas to send to the target contract along with the order.
+     */
     function testFillOrderWithCalldata(uint256 inputAmount, uint256 outputAmount, uint128 gasValue) public {
         address filler = user1;
         assertEq(target.bar(), 0);
@@ -327,7 +378,7 @@ contract OrderSpokeTest is BaseTest {
         vm.startPrank(user0);
         inputToken.mint(user0, inputAmount);
         inputToken.approve(address(hub), inputAmount);
-        (, uint64 nonce) = createOrder(orderRequest, permits, signature, 0);
+        (, uint64 nonce,) = createOrder(orderRequest, permits, signature, 0);
         vm.stopPrank();
 
         vm.startPrank(filler);
@@ -335,13 +386,15 @@ contract OrderSpokeTest is BaseTest {
         outputToken.approve(address(spoke), outputAmount);
 
         bytes32 fillerEncoded = BytesUtils.addressToBytes32(filler);
+        (uint256 fee, bytes memory options) = _getSettlementL0Data(orderRequest.order, nonce, fillerEncoded);
 
         uint256 extraGas = 0.01 ether;
-        uint256 totalGas = orderRequest.order.callValue + extraGas;
+        uint256 totalGas = orderRequest.order.callValue + fee + extraGas;
         vm.deal(filler, totalGas);
         spoke.fillOrder{value: totalGas}(
-            orderRequest.order, nonce, fillerEncoded, orderRequest.order.callValue + extraGas, IRouter.Bridge.NULL, ""
+            orderRequest.order, nonce, fillerEncoded, orderRequest.order.callValue + extraGas, options
         );
+        verifyPackets(aEid, BytesUtils.addressToBytes32(address(hub)));
 
         validateOrderWasFilled(user0, filler, inputAmount, outputAmount);
         vm.stopPrank();
@@ -380,7 +433,10 @@ contract OrderSpokeTest is BaseTest {
         assertEq(address(spoke).balance, 0);
     }
 
-    function testIncorrectChainIdRevert() public {
+    /**
+     * @notice Test destination endpoint validation.
+     */
+    function testIncorrectChainEidRevert() public {
         address filler = user1;
 
         uint256 inputAmount = 1e18;
@@ -388,7 +444,7 @@ contract OrderSpokeTest is BaseTest {
         Root.OrderRequest memory orderRequest = buildOrderRequest(
             user0, user1, address(inputToken), inputAmount, address(outputToken), outputAmount, 1 minutes, 5 minutes
         );
-        orderRequest.order.destinationChainId = 5;
+        orderRequest.order.destinationChainEid = 5;
         bytes memory signature = buildSignature(orderRequest, user0_pk);
 
         vm.startPrank(user0);
@@ -402,7 +458,10 @@ contract OrderSpokeTest is BaseTest {
         outputToken.approve(address(spoke), outputAmount);
 
         uint64 nonce = 1;
-        fillOrderReverts(orderRequest.order, nonce, 0, filler);
+        bytes32 fillerEncoded = BytesUtils.addressToBytes32(filler);
+        (uint256 fee, bytes memory options) = _getSettlementL0Data(orderRequest.order, nonce, fillerEncoded);
+        vm.expectRevert();
+        spoke.fillOrder{value: fee}(orderRequest.order, nonce, fillerEncoded, 0, options);
         vm.stopPrank();
     }
 }

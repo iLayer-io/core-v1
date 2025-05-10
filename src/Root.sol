@@ -36,8 +36,8 @@ contract Root {
         bytes32 filler;
         Token[] inputs;
         Token[] outputs;
-        uint32 sourceChainEid;
-        uint32 destinationChainEid;
+        uint32 sourceChainId;
+        uint32 destinationChainId;
         bool sponsored;
         uint64 primaryFillerDeadline;
         uint64 deadline;

@@ -6,11 +6,13 @@ import {console2} from "forge-std/console2.sol";
 import {Root} from "../src/Root.sol";
 import {OrderHub} from "../src/OrderHub.sol";
 import {OrderHelper} from "../src/libraries/OrderHelper.sol";
-import {MockRouter} from "../test/mocks/MockRouter.sol";
+import {IRouter} from "../src/interfaces/IRouter.sol";
 
 contract CreateOrderScript is Script {
-    uint32 sourceEid = uint32(vm.envUint("SOURCE_EID"));
-    uint32 destEid = uint32(vm.envUint("DEST_EID"));
+    address router = vm.envAddress("ROUTER");
+    uint256 bridge = vm.envUint("BRIDGE");
+    uint32 sourceChain = uint32(vm.envUint("SOURCE_CHAIN"));
+    uint32 destChain = uint32(vm.envUint("DEST_CHAIN"));
     uint256 userPrivateKey = vm.envUint("USER_PRIVATE_KEY");
     address user = vm.envAddress("USER");
     address filler = vm.envAddress("FILLER");
@@ -28,8 +30,8 @@ contract CreateOrderScript is Script {
         vm.startBroadcast(userPrivateKey);
 
         OrderHub.OrderRequest memory orderRequest = OrderHelper.buildOrderRequest(
-            sourceEid,
-            destEid,
+            sourceChain,
+            destChain,
             user,
             filler,
             fromToken,
@@ -42,7 +44,8 @@ contract CreateOrderScript is Script {
         OrderHub hub = OrderHub(hubAddr);
         bytes memory signature = buildSignature(hub, orderRequest, userPrivateKey);
 
-        (bytes32 id, uint64 nonce,) = OrderHelper.createOrder(hub, destEid, orderRequest, permits, signature, 0);
+        (bytes32 id, uint64 nonce) =
+            OrderHelper.createOrder(router, hub, destChain, orderRequest, permits, signature, 0, IRouter.Bridge(bridge));
 
         console2.log("Order id: ");
         console2.logBytes32(id);

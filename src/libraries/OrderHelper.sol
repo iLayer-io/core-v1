@@ -3,6 +3,8 @@ pragma solidity ^0.8.24;
 
 import {OptionsBuilder} from "@layerzerolabs/oapp-evm/contracts/oapp/libs/OptionsBuilder.sol";
 import {MessagingReceipt} from "@layerzerolabs/lz-evm-protocol-v2/contracts/interfaces/ILayerZeroEndpointV2.sol";
+import {IRouter} from "../interfaces/IRouter.sol";
+import {LzRouter} from "../routers/LzRouter.sol";
 import {Root} from "../Root.sol";
 import {OrderHub} from "../OrderHub.sol";
 import {OrderSpoke} from "../OrderSpoke.sol";
@@ -44,8 +46,8 @@ library OrderHelper {
 
     /**
      * @notice Builds an order request for an ERC20 token swap.
-     * @param sourceEid The source chain's EID.
-     * @param destEid The destination chain's EID.
+     * @param sourceId The source chain ID.
+     * @param destId The destination chain ID.
      * @param user The order creator's address.
      * @param filler The order filler's address.
      * @param fromToken The input token address.
@@ -57,8 +59,8 @@ library OrderHelper {
      * @return A Root.Order representing the constructed order.
      */
     function buildOrderRequest(
-        uint32 sourceEid,
-        uint32 destEid,
+        uint32 sourceId,
+        uint32 destId,
         address user,
         address filler,
         address fromToken,
@@ -77,8 +79,8 @@ library OrderHelper {
             filler: BytesUtils.addressToBytes32(filler),
             inputs: inputs,
             outputs: outputs,
-            sourceChainEid: sourceEid,
-            destinationChainEid: destEid,
+            sourceChainId: sourceId,
+            destinationChainId: destId,
             sponsored: false,
             primaryFillerDeadline: uint64(block.timestamp + primaryFillerDeadlineOffset),
             deadline: uint64(block.timestamp + deadlineOffset),
@@ -93,87 +95,104 @@ library OrderHelper {
 
     /**
      * @notice Retrieves messaging fee and options data required for order settlement.
-     * @param spoke The spoke contract.
-     * @param sourceEid The source chain's EID.
+     * @param router The local router contract.
+     * @param sourceId The source chain ID.
      * @param order The order to be processed.
      * @param orderNonce The order nonce.
      * @param hubFundingWallet The hub funding wallet encoded as bytes32.
      * @return fee The estimated fee for messaging.
      * @return options The options payload for the LayerZero messaging.
      */
-    function getSettlementL0Data(
-        OrderSpoke spoke,
-        uint32 sourceEid,
+    function getSettlementLzData(
+        address router,
+        uint32 sourceId,
         Root.Order memory order,
         uint64 orderNonce,
         bytes32 hubFundingWallet
     ) public view returns (uint256 fee, bytes memory options) {
         options = OptionsBuilder.newOptions().addExecutorLzReceiveOption(1e8, 0);
         bytes memory payload = abi.encode(order, orderNonce, hubFundingWallet);
-        fee = spoke.estimateBridgingFee(sourceEid, payload, options);
+        payload = abi.encode(address(1), payload);
+        fee = LzRouter(router).estimateLzBridgingFee(sourceId, payload, options);
     }
 
     /**
      * @notice Retrieves messaging fee and options data required for order settlement.
-     * @param hub The hub contract.
-     * @param destEid The destination chain's EID.
+     * @param router The local router contract.
+     * @param destId The destination chain ID.
      * @return fee The estimated fee for messaging.
      * @return options The options payload for the LayerZero messaging.
      */
-    function getCreationL0Data(OrderHub hub, uint32 destEid) public view returns (uint256 fee, bytes memory options) {
+    function getCreationLzData(address router, uint32 destId) public view returns (uint256 fee, bytes memory options) {
         options = OptionsBuilder.newOptions().addExecutorLzReceiveOption(1e8, 0);
         bytes memory payload = abi.encode(bytes32(0)); // pass a random bytes32 field
-        fee = hub.estimateBridgingFee(destEid, payload, options);
+        payload = abi.encode(address(1), payload);
+        fee = LzRouter(router).estimateLzBridgingFee(destId, payload, options);
     }
 
     /**
      * @notice Creates an order.
+     * @param router The local router contract.
      * @param hub The order hub contract.
-     * @param destEid The destination chain's EID.
+     * @param destId The destination chain ID.
      * @param orderRequest The order to create.
      * @param _permits The token permits.
      * @param signature The order signature.
      * @param gasValue The extra gas to supply;
+     * @param bridgeSelector The bridge to route the message with.
      */
     function createOrder(
+        address router,
         OrderHub hub,
-        uint32 destEid,
+        uint32 destId,
         Root.OrderRequest memory orderRequest,
         bytes[] memory _permits,
         bytes memory signature,
-        uint256 gasValue
-    ) public returns (bytes32 orderId, uint64 nonce, MessagingReceipt memory) {
-        (uint256 fee, bytes memory options) = getCreationL0Data(hub, destEid);
-        (bytes32 _orderId, uint64 _nonce, MessagingReceipt memory receipt) =
-            hub.createOrder{value: fee + gasValue}(orderRequest, _permits, signature, options);
+        uint256 gasValue,
+        IRouter.Bridge bridgeSelector
+    ) public returns (bytes32 orderId, uint64 nonce) {
+        bytes32 _orderId;
+        uint64 _nonce;
 
-        return (_orderId, _nonce, receipt);
+        if (bridgeSelector == IRouter.Bridge.LAYERZERO) {
+            (uint256 fee, bytes memory options) = getCreationLzData(router, destId);
+            (_orderId, _nonce) =
+                hub.createOrder{value: fee + gasValue}(orderRequest, _permits, signature, bridgeSelector, options);
+        } else {
+            (_orderId, _nonce) = hub.createOrder{value: gasValue}(orderRequest, _permits, signature, bridgeSelector, "");
+        }
+
+        return (_orderId, _nonce);
     }
 
     /**
      * @notice Fills an order by invoking fillOrder on the OrderSpoke contract.
+     * @param router The local router contract.
      * @param spoke The spoke contract.
-     * @param sourceEid The source chain's EID.
+     * @param sourceId The source chain ID.
      * @param order The order to fill.
      * @param nonce The order nonce.
      * @param maxGas The maximum gas limit for order processing.
      * @param filler The order filler's address.
-     * @return The MessagingReceipt from the order fill.
+     * @param bridgeSelector The bridge to route the message with.
      */
     function fillOrder(
+        address router,
         OrderSpoke spoke,
-        uint32 sourceEid,
+        uint32 sourceId,
         Root.Order memory order,
         uint64 nonce,
         uint256 maxGas,
-        address filler
-    ) public returns (MessagingReceipt memory) {
+        address filler,
+        IRouter.Bridge bridgeSelector
+    ) public {
         bytes32 fillerEncoded = BytesUtils.addressToBytes32(filler);
-        (uint256 fee, bytes memory options) = getSettlementL0Data(spoke, sourceEid, order, nonce, fillerEncoded);
 
-        MessagingReceipt memory receipt =
-            spoke.fillOrder{value: fee + order.callValue}(order, nonce, fillerEncoded, maxGas, options);
-
-        return receipt;
+        if (bridgeSelector == IRouter.Bridge.LAYERZERO) {
+            (uint256 fee, bytes memory options) = getSettlementLzData(router, sourceId, order, nonce, fillerEncoded);
+            spoke.fillOrder{value: fee + order.callValue}(order, nonce, fillerEncoded, maxGas, bridgeSelector, options);
+        } else {
+            spoke.fillOrder{value: order.callValue}(order, nonce, fillerEncoded, maxGas, bridgeSelector, "");
+        }
     }
 }

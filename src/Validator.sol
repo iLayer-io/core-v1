@@ -18,8 +18,8 @@ contract Validator is Root, EIP712 {
             "bytes32 filler,",
             "Token[] inputs,",
             "Token[] outputs,",
-            "uint32 sourceChainEid,",
-            "uint32 destinationChainEid,",
+            "uint32 sourceChainId,",
+            "uint32 destinationChainId,",
             "bool sponsored,",
             "uint64 primaryFillerDeadline,",
             "uint64 deadline,",
@@ -44,8 +44,8 @@ contract Validator is Root, EIP712 {
             "bytes32 filler,",
             "Token[] inputs,",
             "Token[] outputs,",
-            "uint32 sourceChainEid,",
-            "uint32 destinationChainEid,",
+            "uint32 sourceChainId,",
+            "uint32 destinationChainId,",
             "bool sponsored,",
             "uint64 primaryFillerDeadline,",
             "uint64 deadline,",
@@ -86,8 +86,8 @@ contract Validator is Root, EIP712 {
                 order.filler, // bytes32 filler
                 hashTokenArray(order.inputs), // bytes32 hashed "Token[] inputs"
                 hashTokenArray(order.outputs), // bytes32 hashed "Token[] outputs"
-                order.sourceChainEid, // uint32 sourceChainEid
-                order.destinationChainEid, // uint32 destinationChainEid
+                order.sourceChainId, // uint32 sourceChainId
+                order.destinationChainId, // uint32 destinationChainId
                 order.sponsored, // bool sponsored
                 order.primaryFillerDeadline, // uint64 primaryFillerDeadline
                 order.deadline, // uint64 deadline

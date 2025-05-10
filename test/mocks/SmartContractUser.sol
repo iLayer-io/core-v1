@@ -4,6 +4,7 @@ pragma solidity ^0.8.24;
 import {OptionsBuilder} from "@layerzerolabs/oapp-evm/contracts/oapp/libs/OptionsBuilder.sol";
 import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import {IRouter} from "../../src/interfaces/IRouter.sol";
 import {Root} from "../../src/Validator.sol";
 import {Validator} from "../../src/Validator.sol";
 import {OrderHub} from "../../src/OrderHub.sol";
@@ -28,12 +29,13 @@ contract SmartContractUser {
         OrderHub orderhub,
         Root.OrderRequest memory request,
         bytes[] memory permits,
-        bytes memory _signature
+        bytes memory _signature,
+        bytes memory options,
+        uint256 fee,
+        IRouter.Bridge bridgeSelector
     ) external {
-        bytes memory options = OptionsBuilder.newOptions().addExecutorLzReceiveOption(1e8, 0);
-        bytes memory payload = abi.encode(bytes32(0));
-        uint256 fee = orderhub.estimateBridgingFee(bEid, payload, options);
-        orderhub.createOrder{value: fee}(request, permits, _signature, options);
+        //bytes memory options = OptionsBuilder.newOptions().addExecutorLzReceiveOption(1e8, 0);
+        orderhub.createOrder{value: fee}(request, permits, _signature, bridgeSelector, options);
     }
 
     function isValidSignature(bytes32, bytes memory) external view returns (bytes4 magicValue) {

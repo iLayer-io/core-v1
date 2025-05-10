@@ -1,30 +1,42 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.24;
 
-import {Ownable} from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import {ERC2771Context} from "@openzeppelin/contracts/metatx/ERC2771Context.sol";
 import {Context} from "@openzeppelin/contracts/utils/Context.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import {IERC721Receiver} from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 import {IERC1155Receiver} from "@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol";
-import {OApp, MessagingFee, MessagingReceipt, Origin} from "@layerzerolabs/oapp-evm/contracts/oapp/OApp.sol";
 import {PermitHelper} from "./libraries/PermitHelper.sol";
 import {BytesUtils} from "./libraries/BytesUtils.sol";
+import {IRouter} from "./interfaces/IRouter.sol";
+import {IRouterCallable} from "./interfaces/IRouterCallable.sol";
 import {Validator} from "./Validator.sol";
+import {RouterEnabled} from "./RouterEnabled.sol";
 
 /**
  * @title OrderHub contract
  * @dev Contract that stores user orders and input tokens and sends the fill message
  * @custom:security-contact security@ilayer.io
  */
-contract OrderHub is Validator, ReentrancyGuard, OApp, ERC2771Context, IERC165, IERC721Receiver, IERC1155Receiver {
+contract OrderHub is
+    IRouterCallable,
+    RouterEnabled,
+    Validator,
+    ReentrancyGuard,
+    ERC2771Context,
+    IERC165,
+    IERC721Receiver,
+    IERC1155Receiver
+{
+    mapping(uint32 chainId => bytes32 spoke) public spokes;
     mapping(bytes32 orderId => Status status) public orders;
     mapping(address user => mapping(uint64 nonce => bool used)) public requestNonces;
     uint64 public maxOrderDeadline;
     uint64 public timeBuffer;
     uint64 public nonce;
 
+    event SpokeUpdated(uint32 chainId, bytes32 oldSpokeAddr, bytes32 newSpokeAddr);
     event TimeBufferUpdated(uint64 indexed oldTimeBufferVal, uint64 indexed newTimeBufferVal);
     event MaxOrderDeadlineUpdated(uint64 indexed oldDeadline, uint64 indexed newDeadline);
     event OrderCreated(bytes32 indexed orderId, uint64 nonce, Order order, address indexed caller);
@@ -36,11 +48,12 @@ contract OrderHub is Validator, ReentrancyGuard, OApp, ERC2771Context, IERC165, 
 
     error RequestNonceReused();
     error RequestExpired();
-    error InvalidDestinationEndpoint();
+    error UndefinedSpoke();
     error InvalidOrderInputApprovals();
     error InvalidOrderSignature();
     error InvalidDeadline();
     error InvalidSourceChain();
+    error InvalidDestinationChain();
     error OrderDeadlinesMismatch();
     error OrderPrimaryFillerExpired();
     error OrderCannotBeWithdrawn();
@@ -53,9 +66,14 @@ contract OrderHub is Validator, ReentrancyGuard, OApp, ERC2771Context, IERC165, 
         address _trustedForwarder,
         uint64 _maxOrderDeadline,
         uint64 _timeBuffer
-    ) Ownable(_owner) OApp(_router, _owner) ERC2771Context(_trustedForwarder) {
+    ) RouterEnabled(_owner, _router) ERC2771Context(_trustedForwarder) {
         maxOrderDeadline = _maxOrderDeadline;
         timeBuffer = _timeBuffer;
+    }
+
+    function setSpokeAddress(uint32 chainId, bytes32 spoke) external onlyOwner {
+        emit SpokeUpdated(chainId, spokes[chainId], spoke);
+        spokes[chainId] = spoke;
     }
 
     function setTimeBuffer(uint64 newTimeBuffer) external onlyOwner {
@@ -73,8 +91,9 @@ contract OrderHub is Validator, ReentrancyGuard, OApp, ERC2771Context, IERC165, 
         OrderRequest memory request,
         bytes[] memory permits,
         bytes memory signature,
-        bytes calldata options
-    ) external payable nonReentrant returns (bytes32, uint64, MessagingReceipt memory) {
+        IRouter.Bridge bridgeSelector,
+        bytes calldata extra
+    ) external payable nonReentrant returns (bytes32, uint64) {
         Order memory order = request.order;
         address user = BytesUtils.bytes32ToAddress(order.user);
 
@@ -103,7 +122,7 @@ contract OrderHub is Validator, ReentrancyGuard, OApp, ERC2771Context, IERC165, 
 
             if (input.tokenType == Type.NATIVE) {
                 // check that enough value was supplied
-                if (nativeValue <= input.amount) revert InsufficientGasValue();
+                if (nativeValue < input.amount) revert InsufficientGasValue();
 
                 // subtract to the gas computation
                 nativeValue -= input.amount;
@@ -112,13 +131,18 @@ contract OrderHub is Validator, ReentrancyGuard, OApp, ERC2771Context, IERC165, 
             _transfer(input.tokenType, user, address(this), tokenAddress, input.tokenId, input.amount);
         }
 
-        bytes memory payload = abi.encode(orderId);
-        MessagingReceipt memory receipt =
-            _lzSend(order.destinationChainEid, payload, options, MessagingFee(nativeValue, 0), payable(msg.sender));
+        IRouter.Message memory message = IRouter.Message({
+            bridge: bridgeSelector,
+            chainId: order.destinationChainId,
+            destination: spokes[order.destinationChainId],
+            payload: abi.encode(orderId),
+            extra: extra
+        });
+        router.send{value: nativeValue}(message);
 
         emit OrderCreated(orderId, orderNonce, order, _msgSender());
 
-        return (orderId, orderNonce, receipt);
+        return (orderId, orderNonce);
     }
 
     function withdrawOrder(Order memory order, uint64 orderNonce) external nonReentrant {
@@ -175,13 +199,9 @@ contract OrderHub is Validator, ReentrancyGuard, OApp, ERC2771Context, IERC165, 
             || interfaceId == type(IERC1155Receiver).interfaceId;
     }
 
-    function _lzReceive(Origin calldata data, bytes32, bytes calldata payload, address, bytes calldata)
-        internal
-        override
-        nonReentrant
-    {
-        (Order memory order, uint64 orderNonce, bytes32 fundingWallet) = abi.decode(payload, (Order, uint64, bytes32));
-        if (data.srcEid != order.destinationChainEid) revert InvalidSourceChain(); // this should never happen
+    function onMessageReceived(uint32 srcChainId, bytes memory data) external override onlyRouter {
+        (Order memory order, uint64 orderNonce, bytes32 fundingWallet) = abi.decode(data, (Order, uint64, bytes32));
+        if (srcChainId != order.destinationChainId) revert InvalidDestinationChain(); // this should never happen
 
         bytes32 orderId = getOrderId(order, orderNonce);
 
@@ -200,12 +220,10 @@ contract OrderHub is Validator, ReentrancyGuard, OApp, ERC2771Context, IERC165, 
     }
 
     function _checkOrderValidity(Order memory order, bytes[] memory permits) internal view {
-        if (peers[order.destinationChainEid] == bytes32(0) || order.sourceChainEid == order.destinationChainEid) {
-            revert InvalidDestinationEndpoint();
-        }
+        if (order.sourceChainId != block.chainid) revert InvalidSourceChain();
         if (order.inputs.length != permits.length) revert InvalidOrderInputApprovals();
         if (order.primaryFillerDeadline > order.deadline) revert OrderDeadlinesMismatch();
-        if (order.sourceChainEid != endpoint.eid()) revert InvalidSourceChain();
+        if (spokes[order.destinationChainId] == "") revert UndefinedSpoke();
 
         uint256 timestamp = block.timestamp;
         if (timestamp >= order.deadline) revert OrderExpired();
@@ -218,19 +236,6 @@ contract OrderHub is Validator, ReentrancyGuard, OApp, ERC2771Context, IERC165, 
             abi.decode(permit, (uint256, uint256, uint8, bytes32, bytes32));
 
         PermitHelper.trustlessPermit(token, user, address(this), value, deadline, v, r, s);
-    }
-
-    function estimateBridgingFee(uint32 dstEid, bytes memory payload, bytes calldata options)
-        public
-        view
-        returns (uint256)
-    {
-        MessagingFee memory fee = _quote(dstEid, payload, options, false);
-        return fee.nativeFee;
-    }
-
-    function _payNative(uint256 _nativeFee) internal pure override returns (uint256 nativeFee) {
-        return _nativeFee;
     }
 
     function _msgSender() internal view override(ERC2771Context, Context) returns (address) {
