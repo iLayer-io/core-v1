@@ -8,30 +8,12 @@ import {Root} from "../../src/Root.sol";
 import {OrderHub} from "../../src/OrderHub.sol";
 import {OrderSpoke} from "../../src/OrderSpoke.sol";
 import {MockERC721} from "../mocks/MockERC721.sol";
+import {TargetContract} from "../mocks/TargetContract.sol";
 import {BaseTest} from "./BaseTest.sol";
 
 error RestrictedToPrimaryFiller();
 error OrderExpired();
 error OrderCannotBeFilled();
-error OrderPrimaryFillerExpired();
-
-event TokenSweep(address indexed token, address indexed caller, uint256 amount);
-
-/**
- * @title TargetContract
- * @notice A simple contract used for testing purposes.
- */
-contract TargetContract {
-    uint256 public bar = 0;
-
-    /**
-     * @notice Sets the value of bar.
-     * @param val The new value for bar.
-     */
-    function foo(uint256 val) external payable {
-        bar = val;
-    }
-}
 
 /**
  * @title OrderSpokeTest
@@ -41,7 +23,13 @@ contract OrderSpokeTest is BaseTest {
     TargetContract public immutable target;
 
     constructor() BaseTest() {
-        target = new TargetContract();
+        target = new TargetContract(address(this), address(routerA));
+    }
+
+    function setUp() public override {
+        super.setUp();
+
+        vm.chainId(aEid);
     }
 
     /**
@@ -49,7 +37,7 @@ contract OrderSpokeTest is BaseTest {
      * @param inputAmount The amount of input tokens.
      * @param outputAmount The amount of output tokens.
      */
-    function testFillOrderBase(uint256 inputAmount, uint256 outputAmount) public {
+    function testLzFillOrderBase(uint256 inputAmount, uint256 outputAmount) public {
         address filler = user1;
 
         Root.OrderRequest memory orderRequest = buildOrderRequest(
@@ -79,7 +67,7 @@ contract OrderSpokeTest is BaseTest {
     /**
      * @notice Tests a base order with a fee
      */
-    function testFillOrderWithFee(uint256 inputAmount, uint256 outputAmount, uint16 fee) public {
+    function testLzFillOrderWithFee(uint256 inputAmount, uint256 outputAmount, uint16 fee) public {
         fee = uint16(bound(fee, 0, 10_000));
         outputAmount = bound(outputAmount, 0, type(uint256).max / 10_000);
 
@@ -124,7 +112,7 @@ contract OrderSpokeTest is BaseTest {
     /**
      * @notice Tests filling an order with an ERC721 token as the output.
      */
-    function testFillOrderWithERC721Output() public {
+    function testLzFillOrderWithERC721Output() public {
         address filler = user1;
         uint256 inputAmount = 1 ether;
         MockERC721 outputToken = inputERC721Token;
@@ -160,7 +148,7 @@ contract OrderSpokeTest is BaseTest {
      * @notice Tests that filling an order with an invalid filler reverts.
      */
     /// forge-config: default.allow_internal_expect_revert = true
-    function testFillOrderWithInvalidFiller() public {
+    function testLzFillOrderWithInvalidFiller() public {
         uint256 inputAmount = 1e18;
         uint256 outputAmount = 2 * 1e18;
         address filler = user1;
@@ -196,7 +184,7 @@ contract OrderSpokeTest is BaseTest {
      * @notice Tests that filling an order after its deadline reverts.
      */
     /// forge-config: default.allow_internal_expect_revert = true
-    function testFillOrderWithExpiredDeadline() public {
+    function testLzFillOrderWithExpiredDeadline() public {
         uint256 inputAmount = 1e18;
         uint256 outputAmount = 2 * 1e18;
         address filler = user1;
@@ -230,7 +218,7 @@ contract OrderSpokeTest is BaseTest {
      * @notice Tests that filling an order after the primary filler deadline reverts for the original filler and works for another.
      */
     /// forge-config: default.allow_internal_expect_revert = true
-    function testFillOrderWithExpiredPrimaryFillerDeadline() public {
+    function testLzFillOrderWithExpiredPrimaryFillerDeadline() public {
         uint256 inputAmount = 1e18;
         uint256 outputAmount = 2 * 1e18;
         address filler = user1;
@@ -271,7 +259,7 @@ contract OrderSpokeTest is BaseTest {
      * @notice Tests that filling an already filled order reverts.
      */
     /// forge-config: default.allow_internal_expect_revert = true
-    function testFillOrderWithOrderAlreadyFilled() public {
+    function testLzFillOrderWithOrderAlreadyFilled() public {
         uint256 inputAmount = 1 ether;
         uint256 outputAmount = 2 ether;
         address filler = user1;
@@ -310,7 +298,7 @@ contract OrderSpokeTest is BaseTest {
      * @notice Tests that filling an order with insufficient output token amount reverts.
      */
     /// forge-config: default.allow_internal_expect_revert = true
-    function testFillOrderWithInsufficientAmount() public {
+    function testLzFillOrderWithInsufficientAmount() public {
         uint256 inputAmount = 1e18;
         uint256 outputAmount = 2 * 1e18;
         address filler = user1;
@@ -341,7 +329,7 @@ contract OrderSpokeTest is BaseTest {
     /**
      * @notice Test filling an order with native token in input and output
      */
-    function testFillOrderWithNativeInputAndOutput() public {
+    function testLzFillOrderWithNativeInputAndOutput() public {
         address filler = user1;
         uint256 inputAmount = 1e18;
         uint256 outputAmount = 10 * 1e18;
@@ -357,7 +345,7 @@ contract OrderSpokeTest is BaseTest {
         bytes memory signature = buildSignature(orderRequest, user0_pk);
 
         // create order
-        vm.deal(user0, inputAmount + 300011508); // l0 fee
+        vm.deal(user0, inputAmount + 300011508); // lz fee
         assertEq(address(hub).balance, 0);
         vm.prank(user0);
         (, uint64 nonce) = createOrder(orderRequest, permits, signature, inputAmount);
@@ -370,11 +358,13 @@ contract OrderSpokeTest is BaseTest {
         uint256 totalGas = outputAmount + fee + extraGas;
         vm.deal(filler, totalGas);
 
+        vm.chainId(bEid);
+
         uint256 initialBalance = user0.balance;
         assertEq(address(spoke).balance, 0);
         vm.prank(filler);
         spoke.fillOrder{value: totalGas}(orderRequest.order, nonce, fillerEncoded, 0, IRouter.Bridge.LAYERZERO, options);
-        verifyPackets(aEid, BytesUtils.addressToBytes32(address(hub)));
+        verifyPackets(aEid, BytesUtils.addressToBytes32(address(routerA)));
 
         assertEq(address(spoke).balance, 0);
         assertEq(address(hub).balance, 0);
@@ -387,7 +377,7 @@ contract OrderSpokeTest is BaseTest {
      * @param outputAmount The amount of output tokens.
      * @param gasValue The amount of gas to send to the target contract along with the order.
      */
-    function testFillOrderWithCalldata(uint256 inputAmount, uint256 outputAmount, uint128 gasValue) public {
+    function testLzFillOrderWithCalldata(uint256 inputAmount, uint256 outputAmount, uint128 gasValue) public {
         address filler = user1;
         assertEq(target.bar(), 0);
 
@@ -409,6 +399,8 @@ contract OrderSpokeTest is BaseTest {
         outputToken.mint(filler, outputAmount);
         outputToken.approve(address(spoke), outputAmount);
 
+        vm.chainId(bEid);
+
         bytes32 fillerEncoded = BytesUtils.addressToBytes32(filler);
         (uint256 fee, bytes memory options) = _getSettlementLzData(orderRequest.order, nonce, fillerEncoded);
 
@@ -423,7 +415,7 @@ contract OrderSpokeTest is BaseTest {
             IRouter.Bridge.LAYERZERO,
             options
         );
-        verifyPackets(aEid, BytesUtils.addressToBytes32(address(hub)));
+        verifyPackets(aEid, BytesUtils.addressToBytes32(address(routerA)));
 
         validateOrderWasFilled(user0, filler, inputAmount, outputAmount);
         vm.stopPrank();
@@ -435,7 +427,7 @@ contract OrderSpokeTest is BaseTest {
     /**
      * @notice Tests sweeping tokens from the spoke contract.
      */
-    function testSweepTokens() public {
+    function testLzSweepTokens() public {
         uint256 inputAmount = 1 ether;
 
         inputToken.mint(user0, inputAmount);
@@ -465,7 +457,7 @@ contract OrderSpokeTest is BaseTest {
     /**
      * @notice Test destination endpoint validation.
      */
-    function testIncorrectChainEidRevert() public {
+    function testLzIncorrectChainEidRevert() public {
         address filler = user1;
 
         uint256 inputAmount = 1e18;

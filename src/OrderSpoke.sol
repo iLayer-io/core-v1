@@ -42,6 +42,7 @@ contract OrderSpoke is IRouterCallable, RouterEnabled, Root, ReentrancyGuard {
 
     error UndefinedHub();
     error InvalidFeeValue();
+    error InvalidOrder();
     error OrderAlreadyFilled();
     error OrderExpired();
     error InvalidDestinationChain();
@@ -100,7 +101,8 @@ contract OrderSpoke is IRouterCallable, RouterEnabled, Root, ReentrancyGuard {
             chainId: order.sourceChainId,
             destination: hubs[order.sourceChainId],
             payload: abi.encode(order, orderNonce, fundingWallet),
-            extra: extra
+            extra: extra,
+            sender: BytesUtils.addressToBytes32(msg.sender)
         });
         router.send{value: nativeValue}(message);
 
@@ -111,7 +113,8 @@ contract OrderSpoke is IRouterCallable, RouterEnabled, Root, ReentrancyGuard {
         uint64 currentTime = uint64(block.timestamp);
         if (hubs[order.sourceChainId] == "") revert UndefinedHub(); // avoids filling an order we cannot dispatch
         if (currentTime > order.deadline) revert OrderExpired();
-        if (orders[orderId] != OrderStatus.PENDING) revert OrderAlreadyFilled();
+        if (orders[orderId] == OrderStatus.NULL) revert InvalidOrder();
+        if (orders[orderId] == OrderStatus.FILLED) revert OrderAlreadyFilled();
         if (order.destinationChainId != block.chainid) revert InvalidDestinationChain();
 
         address filler = BytesUtils.bytes32ToAddress(order.filler);

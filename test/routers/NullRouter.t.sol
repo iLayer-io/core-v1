@@ -22,7 +22,8 @@ contract NullRouterTest is Test {
             chainId: uint32(block.chainid),
             destination: BytesUtils.addressToBytes32(address(target)),
             payload: abi.encode(amt),
-            extra: ""
+            extra: "",
+            sender: BytesUtils.addressToBytes32(address(this))
         });
         router.send(message);
         assertEq(target.bar(), amt);
@@ -34,7 +35,8 @@ contract NullRouterTest is Test {
             chainId: uint32(block.chainid + 1),
             destination: BytesUtils.addressToBytes32(address(target)),
             payload: abi.encode(100),
-            extra: ""
+            extra: "",
+            sender: BytesUtils.addressToBytes32(address(this))
         });
 
         vm.expectRevert();

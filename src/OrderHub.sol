@@ -136,7 +136,8 @@ contract OrderHub is
             chainId: order.destinationChainId,
             destination: spokes[order.destinationChainId],
             payload: abi.encode(orderId),
-            extra: extra
+            extra: extra,
+            sender: BytesUtils.addressToBytes32(msg.sender)
         });
         router.send{value: nativeValue}(message);
 

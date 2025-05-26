@@ -49,7 +49,8 @@ contract LzRouterTest is TestHelperOz5 {
             chainId: bEid,
             destination: BytesUtils.addressToBytes32(address(target)),
             payload: abi.encode(amt),
-            extra: options
+            extra: options,
+            sender: BytesUtils.addressToBytes32(address(this))
         });
         routerA.send{value: fee * 10}(message);
         verifyPackets(bEid, BytesUtils.addressToBytes32(address(routerB)));

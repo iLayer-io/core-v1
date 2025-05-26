@@ -96,10 +96,8 @@ contract BaseTest is TestHelperOz5 {
         oapps[1] = address(routerB);
         this.wireOApps(oapps);
 
-        routerA.setLzEid(aEid, aEid);
         routerA.setLzEid(bEid, bEid);
         routerB.setLzEid(aEid, aEid);
-        routerB.setLzEid(bEid, bEid);
 
         hub = new OrderHub(address(this), address(routerA), address(0), 1 days, 0);
         spoke = new OrderSpoke(address(this), address(routerB));
@@ -111,8 +109,6 @@ contract BaseTest is TestHelperOz5 {
         hub.setMaxOrderDeadline(1 days);
         hub.setSpokeAddress(bEid, BytesUtils.addressToBytes32(address(spoke)));
         spoke.setHubAddress(aEid, BytesUtils.addressToBytes32(address(hub)));
-
-        vm.chainId(aEid);
     }
 
     function _getCreationLzData() internal view returns (uint256 fee, bytes memory options) {
@@ -398,7 +394,7 @@ contract BaseTest is TestHelperOz5 {
             address(routerA), hub, bEid, orderRequest, _permits, signature, gasValue, IRouter.Bridge.LAYERZERO
         );
 
-        verifyPackets(bEid, BytesUtils.addressToBytes32(address(spoke)));
+        verifyPackets(bEid, BytesUtils.addressToBytes32(address(routerB)));
 
         return (_orderId, _nonce);
     }
@@ -416,13 +412,16 @@ contract BaseTest is TestHelperOz5 {
     }
 
     function fillOrder(Root.Order memory order, uint64 nonce, uint256 maxGas, address filler) public payable {
+        vm.chainId(bEid);
+
         bytes32 fillerEncoded = BytesUtils.addressToBytes32(filler);
         (uint256 fee, bytes memory options) = _getSettlementLzData(order, nonce, fillerEncoded);
 
-        vm.chainId(bEid);
         spoke.fillOrder{value: fee + order.callValue}(
             order, nonce, fillerEncoded, maxGas, IRouter.Bridge.LAYERZERO, options
         );
-        verifyPackets(aEid, BytesUtils.addressToBytes32(address(hub)));
+        verifyPackets(aEid, BytesUtils.addressToBytes32(address(routerA)));
+
+        vm.chainId(aEid);
     }
 }

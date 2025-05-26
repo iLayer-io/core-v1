@@ -283,7 +283,7 @@ contract OrderSpokeTest is BaseTest {
         bytes memory signature = buildSignature(orderRequest, user0_pk);
 
         // create order
-        vm.deal(user0, inputAmount + 300011508); // l0 fee
+        vm.deal(user0, inputAmount);
         assertEq(address(hub).balance, 0);
         vm.prank(user0);
         (, uint64 nonce) = createOrder(orderRequest, permits, signature, inputAmount);

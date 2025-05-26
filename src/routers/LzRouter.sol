@@ -5,6 +5,7 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import {OApp, MessagingFee, MessagingReceipt, Origin} from "@layerzerolabs/oapp-evm/contracts/oapp/OApp.sol";
 import {IRouter} from "../interfaces/IRouter.sol";
 import {IRouterCallable} from "../interfaces/IRouterCallable.sol";
+import {BytesUtils} from "../libraries/BytesUtils.sol";
 
 /**
  * @title Router contract for LayzerZero
@@ -51,8 +52,9 @@ contract LzRouter is IRouter, OApp {
         if (destEid == 0) revert UnsupportedLzChain();
 
         bytes memory payload = abi.encode(message.destination, message.payload);
+        address refund = BytesUtils.bytes32ToAddress(message.sender);
         MessagingReceipt memory receipt =
-            _lzSend(destEid, payload, message.extra, MessagingFee(msg.value, 0), payable(msg.sender));
+            _lzSend(destEid, payload, message.extra, MessagingFee(msg.value, 0), payable(refund));
 
         emit MessageRoutedLz(receipt);
     }

@@ -16,6 +16,7 @@ interface IRouter {
         bytes32 destination;
         bytes payload;
         bytes extra;
+        bytes32 sender;
     }
 
     event MessageBroadcasted(Message message);

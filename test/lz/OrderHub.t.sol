@@ -22,13 +22,19 @@ event ERC1155BatchReceived(address operator, address from, uint256[] ids, uint25
 contract OrderHubTest is BaseTest {
     constructor() BaseTest() {}
 
+    function setUp() public override {
+        super.setUp();
+
+        vm.chainId(aEid);
+    }
+
     /**
      * @notice Test order creation for an ERC20 token swap.
      * @param inputAmount The amount of input tokens.
      * @param outputAmount The amount of output tokens.
      * @return order The built order.
      */
-    function testCreateOrder(uint256 inputAmount, uint256 outputAmount) public returns (Root.OrderRequest memory) {
+    function testLzCreateOrder(uint256 inputAmount, uint256 outputAmount) public returns (Root.OrderRequest memory) {
         Root.OrderRequest memory orderRequest = buildOrderRequest(
             user0,
             address(this),
@@ -56,7 +62,7 @@ contract OrderHubTest is BaseTest {
     /**
      * @notice Test order creation using an ERC20 permit.
      */
-    function testCreateOrderWithPermit() public {
+    function testLzCreateOrderWithPermit() public {
         uint256 inputAmount = 1e18;
         Root.OrderRequest memory orderRequest = buildOrderRequest(
             user0, address(this), address(inputToken), inputAmount, address(outputToken), 1, 1 minutes, 5 minutes
@@ -86,7 +92,7 @@ contract OrderHubTest is BaseTest {
     /**
      * @notice Test order creation with an ERC721 token as output.
      */
-    function testCreateOrderWithERC721Output() public {
+    function testLzCreateOrderWithERC721Output() public {
         uint256 inputAmount = 1 ether;
         uint256 outputAmount = 1;
         MockERC721 outputToken = inputERC721Token;
@@ -116,9 +122,9 @@ contract OrderHubTest is BaseTest {
     /**
      * @notice Test the order withdrawal process.
      */
-    function testOrderWithdrawal() public {
+    function testLzOrderWithdrawal() public {
         uint256 inputAmount = 1e18;
-        Root.OrderRequest memory orderRequest = testCreateOrder(inputAmount, 1);
+        Root.OrderRequest memory orderRequest = testLzCreateOrder(inputAmount, 1);
 
         vm.warp(block.timestamp + 1 minutes);
         vm.startPrank(user0);
@@ -143,9 +149,9 @@ contract OrderHubTest is BaseTest {
     /**
      * @notice Test that double withdrawal of the same order fails.
      */
-    function testDoubleWithdrawal() public {
+    function testLzDoubleWithdrawal() public {
         uint256 inputAmount = 1e18;
-        Root.OrderRequest memory orderRequest = testCreateOrder(inputAmount, 1);
+        Root.OrderRequest memory orderRequest = testLzCreateOrder(inputAmount, 1);
         vm.warp(block.timestamp + 5 minutes);
 
         vm.prank(user0);
@@ -160,7 +166,7 @@ contract OrderHubTest is BaseTest {
     /**
      * @notice Test order creation failure due to insufficient token allowance.
      */
-    function testCreateOrderInsufficientAllowance() public {
+    function testLzCreateOrderInsufficientAllowance() public {
         uint256 inputAmount = 1e18;
         Root.OrderRequest memory orderRequest = buildOrderRequest(
             user0, address(this), address(inputToken), inputAmount, address(outputToken), 1, 1 minutes, 5 minutes
@@ -178,7 +184,7 @@ contract OrderHubTest is BaseTest {
     /**
      * @notice Test order creation failure when the order signature is invalid.
      */
-    function testInvalidOrderSignature() public {
+    function testLzInvalidOrderSignature() public {
         uint256 inputAmount = 1e18;
         Root.OrderRequest memory orderRequest = buildOrderRequest(
             user0, address(this), address(inputToken), inputAmount, address(outputToken), 1, 1 minutes, 5 minutes
@@ -199,7 +205,7 @@ contract OrderHubTest is BaseTest {
     /**
      * @notice Test order creation failure due to deadline mismatch.
      */
-    function testOrderDeadlineMismatch() public {
+    function testLzOrderDeadlineMismatch() public {
         uint256 inputAmount = 1e18;
         Root.OrderRequest memory orderRequest = buildOrderRequest(
             user0, address(this), address(inputToken), inputAmount, address(outputToken), 1, 6 minutes, 5 minutes
@@ -217,7 +223,7 @@ contract OrderHubTest is BaseTest {
     /**
      * @notice Test that order creation fails when the order has already expired.
      */
-    function testOrderExpired() public {
+    function testLzOrderExpired() public {
         uint256 inputAmount = 1e18;
         Root.OrderRequest memory orderRequest = buildOrderRequest(
             user0, address(this), address(inputToken), inputAmount, address(outputToken), 1, 1 minutes, 5 minutes
@@ -236,7 +242,7 @@ contract OrderHubTest is BaseTest {
     /**
      * @notice Test order creation failure when the token balance is insufficient.
      */
-    function testCreateOrderInsufficientBalance() public {
+    function testLzCreateOrderInsufficientBalance() public {
         uint256 inputAmount = 1e18;
         Root.OrderRequest memory orderRequest = buildOrderRequest(
             user0, address(this), address(inputToken), inputAmount, address(outputToken), 1, 1 minutes, 5 minutes
@@ -254,7 +260,7 @@ contract OrderHubTest is BaseTest {
     /**
      * @notice Test withdrawal failure for a non-existent order.
      */
-    function testWithdrawNonExistentOrder() public {
+    function testLzWithdrawNonExistentOrder() public {
         uint256 inputAmount = 1e18;
         Root.OrderRequest memory orderRequest = buildOrderRequest(
             user0, address(this), address(inputToken), inputAmount, address(outputToken), 1, 1 minutes, 5 minutes
@@ -268,7 +274,7 @@ contract OrderHubTest is BaseTest {
     /**
      * @notice Test creation of multiple orders from the same user.
      */
-    function testCreateMultipleOrdersSameUser(uint256 inputAmount1, uint256 inputAmount2) public {
+    function testLzCreateMultipleOrdersSameUser(uint256 inputAmount1, uint256 inputAmount2) public {
         vm.assume(inputAmount1 < type(uint256).max - inputAmount2);
         vm.assume(inputAmount1 > 0);
         vm.assume(inputAmount2 > 0);
@@ -305,7 +311,7 @@ contract OrderHubTest is BaseTest {
     /**
      * @notice Test creation of multiple orders from different users.
      */
-    function testCreateMultipleOrdersMultipleUsers(uint256 inputAmount1, uint256 inputAmount2) public {
+    function testLzCreateMultipleOrdersMultipleUsers(uint256 inputAmount1, uint256 inputAmount2) public {
         vm.assume(inputAmount1 < type(uint256).max - inputAmount2);
         vm.assume(inputAmount1 > 0);
         vm.assume(inputAmount2 > 0);
@@ -339,7 +345,7 @@ contract OrderHubTest is BaseTest {
     /**
      * @notice Test order creation failure when using an invalid token address.
      */
-    function testCreateOrderWithInvalidTokens() public {
+    function testLzCreateOrderWithInvalidTokens() public {
         uint256 inputAmount = 1e18;
         uint256 outputAmount = 1e18;
         Root.OrderRequest memory orderRequest = buildOrderRequest(
@@ -353,7 +359,7 @@ contract OrderHubTest is BaseTest {
     /**
      * @notice Test order creation via a smart contract user.
      */
-    function testCreateOrderSmartContract(uint256 inputAmount) public {
+    function testLzCreateOrderSmartContract(uint256 inputAmount) public {
         vm.assume(inputAmount > 0);
         Root.OrderRequest memory orderRequest = buildOrderRequest(
             address(contractUser),
@@ -389,7 +395,7 @@ contract OrderHubTest is BaseTest {
     /**
      * @notice Test withdrawing multiple identical orders.
      */
-    function testWithdrawMultipleIdenticalOrders() public {
+    function testLzWithdrawMultipleIdenticalOrders() public {
         uint256 inputAmount = 1e18;
         Root.OrderRequest memory orderRequest = buildOrderRequest(
             user0, address(this), address(inputToken), inputAmount, address(outputToken), 1, 1 minutes, 5 minutes
@@ -425,7 +431,7 @@ contract OrderHubTest is BaseTest {
     /**
      * @notice Test that order creation fails when the order deadline exceeds the maximum allowed.
      */
-    function testMaxDeadline() public {
+    function testLzMaxDeadline() public {
         uint64 maxDeadline = 1 hours;
         hub.setMaxOrderDeadline(maxDeadline);
 
@@ -453,7 +459,7 @@ contract OrderHubTest is BaseTest {
     /**
      * @notice Test the time buffer functionality for order withdrawal.
      */
-    function testTimeBuffer() public {
+    function testLzTimeBuffer() public {
         uint64 timeBufferPeriod = 1 hours;
         hub.setTimeBuffer(timeBufferPeriod);
 
@@ -487,7 +493,7 @@ contract OrderHubTest is BaseTest {
     /**
      * @notice Test source endpoint validation.
      */
-    function testIncorrectEidRevert() public {
+    function testLzIncorrectEidRevert() public {
         uint256 inputAmount = 1e18;
         Root.OrderRequest memory orderRequest = buildOrderRequest(
             user0, user1, address(inputToken), inputAmount, address(outputToken), 0, 1 minutes, 5 minutes
@@ -505,7 +511,7 @@ contract OrderHubTest is BaseTest {
     /**
      * @notice Test updating the time buffer.
      */
-    function testTimeBufferUpdate(uint64 timeBuffer) public {
+    function testLzTimeBufferUpdate(uint64 timeBuffer) public {
         assertEq(hub.timeBuffer(), 0);
         hub.setTimeBuffer(timeBuffer);
         assertEq(hub.timeBuffer(), timeBuffer);
@@ -519,7 +525,7 @@ contract OrderHubTest is BaseTest {
     /**
      * @notice Test replay attack prevention.
      */
-    function testReplyAttack() public {
+    function testLzReplyAttack() public {
         uint256 inputAmount = 1 ether;
         Root.OrderRequest memory orderRequest = buildOrderRequest(
             user0, address(this), address(inputToken), inputAmount, address(outputToken), 1, 1 minutes, 5 minutes
@@ -540,7 +546,7 @@ contract OrderHubTest is BaseTest {
     /**
      * @notice Test creation of an order with an ERC721 token.
      */
-    function testCreateERC721Order() public {
+    function testLzCreateERC721Order() public {
         Root.OrderRequest memory orderRequest = buildERC721OrderRequest(
             BytesUtils.addressToBytes32(user0),
             BytesUtils.addressToBytes32(address(this)),
@@ -571,7 +577,7 @@ contract OrderHubTest is BaseTest {
     /**
      * @notice Test creation of an order with an ERC1155 token.
      */
-    function testCreateERC1155Order() public {
+    function testLzCreateERC1155Order() public {
         uint256[] memory ids = new uint256[](1);
         ids[0] = 1;
 
@@ -605,7 +611,7 @@ contract OrderHubTest is BaseTest {
     /**
      * @notice Test create and withdraw an order of native tokens
      */
-    function testNativeTokenOrder() public {
+    function testLzNativeTokenOrder() public {
         uint256 inputAmount = 1e18;
 
         vm.deal(user0, inputAmount + 300011508);
