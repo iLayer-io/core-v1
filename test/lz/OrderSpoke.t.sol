@@ -437,7 +437,7 @@ contract OrderSpokeTest is BaseTest {
         inputToken.transfer(address(spoke), 0.5 ether);
 
         assertEq(inputToken.balanceOf(address(spoke)), 0.5 ether);
-        spoke.sweep(Root.Type.ERC20, 0, address(inputToken), user1, 0.5 ether);
+        spoke.sweep(Root.Type.FUNGIBLE_TOKEN, 0, address(inputToken), user1, 0.5 ether);
 
         assertEq(inputToken.balanceOf(user0), 0.5 ether);
         assertEq(inputToken.balanceOf(address(spoke)), 0);

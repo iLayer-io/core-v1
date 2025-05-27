@@ -620,7 +620,7 @@ contract OrderHubTest is BaseTest {
         inputs[0] = Root.Token({tokenType: Root.Type.NATIVE, tokenAddress: "", tokenId: 0, amount: inputAmount});
 
         Root.Token[] memory outputs = new Root.Token[](1);
-        outputs[0] = Root.Token({tokenType: Root.Type.ERC20, tokenAddress: "", tokenId: 0, amount: 0});
+        outputs[0] = Root.Token({tokenType: Root.Type.FUNGIBLE_TOKEN, tokenAddress: "", tokenId: 0, amount: 0});
 
         Root.OrderRequest memory orderRequest =
             buildBaseOrderRequest(inputs, outputs, user0, user1, 1 minutes, 5 minutes, "", "", 0);

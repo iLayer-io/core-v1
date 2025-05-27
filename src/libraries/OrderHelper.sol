@@ -29,7 +29,7 @@ library OrderHelper {
     {
         inputs = new Root.Token[](1);
         inputs[0] = Root.Token({
-            tokenType: Root.Type.ERC20,
+            tokenType: Root.Type.FUNGIBLE_TOKEN,
             tokenAddress: BytesUtils.addressToBytes32(fromToken),
             tokenId: 0,
             amount: inputAmount
@@ -37,7 +37,7 @@ library OrderHelper {
 
         outputs = new Root.Token[](1);
         outputs[0] = Root.Token({
-            tokenType: Root.Type.ERC20,
+            tokenType: Root.Type.FUNGIBLE_TOKEN,
             tokenAddress: BytesUtils.addressToBytes32(toToken),
             tokenId: 0,
             amount: outputAmount

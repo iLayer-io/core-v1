@@ -179,7 +179,7 @@ contract BaseTest is Test {
     ) public returns (Root.OrderRequest memory) {
         Root.Token[] memory inputs = new Root.Token[](1);
         inputs[0] = Root.Token({
-            tokenType: Root.Type.ERC721,
+            tokenType: Root.Type.NON_FUNGIBLE_TOKEN,
             tokenAddress: BytesUtils.addressToBytes32(fromToken),
             tokenId: fromTokenId,
             amount: inputAmount
@@ -187,7 +187,7 @@ contract BaseTest is Test {
 
         Root.Token[] memory outputs = new Root.Token[](1);
         outputs[0] = Root.Token({
-            tokenType: Root.Type.ERC20,
+            tokenType: Root.Type.FUNGIBLE_TOKEN,
             tokenAddress: BytesUtils.addressToBytes32(toToken),
             tokenId: type(uint256).max,
             amount: outputAmount
@@ -224,7 +224,7 @@ contract BaseTest is Test {
         Root.Token[] memory inputs = new Root.Token[](fromTokenIds.length);
         for (uint256 i = 0; i < fromTokenIds.length; i++) {
             inputs[i] = Root.Token({
-                tokenType: Root.Type.ERC1155,
+                tokenType: Root.Type.SEMI_FUNGIBLE_TOKEN,
                 tokenAddress: BytesUtils.addressToBytes32(fromToken),
                 tokenId: fromTokenIds[i],
                 amount: inputAmount
@@ -233,7 +233,7 @@ contract BaseTest is Test {
 
         Root.Token[] memory outputs = new Root.Token[](1);
         outputs[0] = Root.Token({
-            tokenType: Root.Type.ERC20,
+            tokenType: Root.Type.FUNGIBLE_TOKEN,
             tokenAddress: BytesUtils.addressToBytes32(toToken),
             tokenId: 0,
             amount: outputAmount

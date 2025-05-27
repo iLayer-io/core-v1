@@ -18,9 +18,10 @@ contract Root {
     enum Type {
         NULL,
         NATIVE,
-        ERC20,
-        ERC721,
-        ERC1155
+        FUNGIBLE_TOKEN, // ERC20
+        NON_FUNGIBLE_TOKEN, // ERC721
+        SEMI_FUNGIBLE_TOKEN // ERC1155
+
     }
 
     struct Token {
@@ -61,7 +62,7 @@ contract Root {
     }
 
     function _transfer(Type tokenType, address from, address to, address token, uint256 id, uint256 amount) internal {
-        if (tokenType == Type.ERC20) {
+        if (tokenType == Type.FUNGIBLE_TOKEN) {
             if (from == address(this)) IERC20(token).safeTransfer(to, amount);
             else IERC20(token).safeTransferFrom(from, to, amount);
         } else if (tokenType == Type.NATIVE) {
@@ -75,9 +76,9 @@ contract Root {
                     if (!success) revert NativeTransferFailed();
                 }
             }
-        } else if (tokenType == Type.ERC721) {
+        } else if (tokenType == Type.NON_FUNGIBLE_TOKEN) {
             IERC721(token).safeTransferFrom(from, to, id);
-        } else if (tokenType == Type.ERC1155) {
+        } else if (tokenType == Type.SEMI_FUNGIBLE_TOKEN) {
             IERC1155(token).safeTransferFrom(from, to, id, amount, "");
         } else {
             revert UnsupportedTransfer();

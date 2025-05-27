@@ -141,7 +141,7 @@ contract OrderSpoke is IRouterCallable, RouterEnabled, Root, ReentrancyGuard {
             uint256 feeAmount = 0;
             address tokenAddress;
 
-            if (output.tokenType == Type.NATIVE || output.tokenType == Type.ERC20) {
+            if (output.tokenType == Type.NATIVE || output.tokenType == Type.FUNGIBLE_TOKEN) {
                 feeAmount = amount * fee / FEE_RESOLUTION;
                 amount -= feeAmount;
             }
