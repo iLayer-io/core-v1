@@ -2,17 +2,17 @@
 pragma solidity ^0.8.24;
 
 import {Ownable} from "@openzeppelin/contracts/access/Ownable2Step.sol";
-import {IRouter} from "./interfaces/IRouter.sol";
+import {BaseRouter} from "./routers/BaseRouter.sol";
 
 contract RouterEnabled is Ownable {
-    IRouter public router;
+    BaseRouter public router;
 
     event RouterUpdated(address indexed oldRouter, address indexed newRouter);
 
     error RestrictedToRouter();
 
     constructor(address _owner, address _router) Ownable(_owner) {
-        router = IRouter(_router);
+        router = BaseRouter(_router);
     }
 
     modifier onlyRouter() {
@@ -22,6 +22,6 @@ contract RouterEnabled is Ownable {
 
     function setRouter(address newRouter) external onlyOwner {
         emit RouterUpdated(address(router), newRouter);
-        router = IRouter(newRouter);
+        router = BaseRouter(newRouter);
     }
 }

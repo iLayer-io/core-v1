@@ -9,8 +9,8 @@ import {IERC721Receiver} from "@openzeppelin/contracts/token/ERC721/IERC721Recei
 import {IERC1155Receiver} from "@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol";
 import {PermitHelper} from "./libraries/PermitHelper.sol";
 import {BytesUtils} from "./libraries/BytesUtils.sol";
-import {IRouter} from "./interfaces/IRouter.sol";
 import {IRouterCallable} from "./interfaces/IRouterCallable.sol";
+import {BaseRouter} from "./routers/BaseRouter.sol";
 import {Validator} from "./Validator.sol";
 import {RouterEnabled} from "./RouterEnabled.sol";
 
@@ -91,7 +91,7 @@ contract OrderHub is
         OrderRequest memory request,
         bytes[] memory permits,
         bytes memory signature,
-        IRouter.Bridge bridgeSelector,
+        BaseRouter.Bridge bridgeSelector,
         bytes calldata extra
     ) external payable nonReentrant returns (bytes32, uint64) {
         Order memory order = request.order;
@@ -131,7 +131,7 @@ contract OrderHub is
             _transfer(input.tokenType, user, address(this), tokenAddress, input.tokenId, input.amount);
         }
 
-        IRouter.Message memory message = IRouter.Message({
+        BaseRouter.Message memory message = BaseRouter.Message({
             bridge: bridgeSelector,
             chainId: order.destinationChainId,
             destination: spokes[order.destinationChainId],

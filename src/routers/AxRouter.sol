@@ -1,21 +1,20 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.24;
 
-import {Ownable} from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 import {AxelarExecutable} from "@axelar-network/contracts/executable/AxelarExecutable.sol";
 import {IAxelarGateway} from "@axelar-network/contracts/interfaces/IAxelarGateway.sol";
 import {IAxelarGasService} from "@axelar-network/contracts/interfaces/IAxelarGasService.sol";
-import {IRouter} from "../interfaces/IRouter.sol";
 import {IRouterCallable} from "../interfaces/IRouterCallable.sol";
 import {BytesUtils} from "../libraries/BytesUtils.sol";
+import {BaseRouter} from "./BaseRouter.sol";
 
 /**
  * @title Router contract for Axelar
  * @dev Helper to execute cross-chain contract calls
  * @custom:security-contact security@ilayer.io
  */
-contract AxRouter is IRouter, AxelarExecutable, Ownable {
+contract AxRouter is BaseRouter, AxelarExecutable {
     IAxelarGasService public immutable gasService;
     mapping(uint32 chainId => string axChainStr) public chainIdToAxChainStr;
     mapping(string axChainStr => uint32 chainId) public AxChainStrToChainId;
@@ -28,8 +27,8 @@ contract AxRouter is IRouter, AxelarExecutable, Ownable {
     error UnsupportedAxChain();
     error InvalidPeer();
 
-    constructor(address _owner, address gateway_, address gasService_) Ownable(_owner) AxelarExecutable(gateway_) {
-        gasService = IAxelarGasService(gasService_);
+    constructor(address _owner, address _gateway, address _gasService) BaseRouter(_owner) AxelarExecutable(_gateway) {
+        gasService = IAxelarGasService(_gasService);
     }
 
     function setPeerRouter(uint32 chainId, string memory _router) external onlyOwner {
@@ -45,23 +44,29 @@ contract AxRouter is IRouter, AxelarExecutable, Ownable {
         emit AxChainStrUpdated(chainId, axChainStr);
     }
 
-    function send(Message calldata message) external payable override(IRouter) {
-        string memory destinationChain = chainIdToAxChainStr[message.chainId];
-        if (bytes(destinationChain).length == 0) revert UnsupportedAxChain();
+    function send(Message calldata message) external payable virtual override onlyWhitelisted(msg.sender) {
+        if (message.bridge == Bridge.AXELAR) {
+            string memory destinationChain = chainIdToAxChainStr[message.chainId];
+            if (bytes(destinationChain).length == 0) revert UnsupportedAxChain();
 
-        string memory destinationAddress = routers[message.chainId];
-        if (bytes(destinationAddress).length == 0) revert InvalidPeer();
+            string memory destinationAddress = routers[message.chainId];
+            if (bytes(destinationAddress).length == 0) revert InvalidPeer();
 
-        bytes memory payload = abi.encode(message.destination, message.payload);
-        address refund = BytesUtils.bytes32ToAddress(message.sender);
+            bytes memory payload = abi.encode(message.destination, message.payload);
+            address refund = BytesUtils.bytes32ToAddress(message.sender);
 
-        gasService.payNativeGasForContractCall{value: msg.value}(
-            address(this), destinationChain, destinationAddress, payload, refund
-        );
+            gasService.payNativeGasForContractCall{value: msg.value}(
+                address(this), destinationChain, destinationAddress, payload, refund
+            );
 
-        gateway().callContract(destinationChain, destinationAddress, payload);
+            gateway().callContract(destinationChain, destinationAddress, payload);
 
-        emit MessageRoutedAx();
+            emit MessageRoutedAx();
+        } else if (message.bridge == Bridge.NULL) {
+            BaseRouter._relay(message);
+        } else {
+            revert UnsupportedBridgingRoute();
+        }
     }
 
     function _execute(bytes32, string calldata sourceChain, string calldata sourceAddress, bytes calldata payload)

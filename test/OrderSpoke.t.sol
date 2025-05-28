@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.24;
 
-import {IRouter} from "../src/interfaces/IRouter.sol";
+import {MockERC721} from "./mocks/MockERC721.sol";
+import {TargetContract} from "./mocks/TargetContract.sol";
+import {BaseRouter} from "../src/routers/BaseRouter.sol";
 import {BytesUtils} from "../src/libraries/BytesUtils.sol";
 import {Root} from "../src/Root.sol";
 import {OrderHub} from "../src/OrderHub.sol";
 import {OrderSpoke} from "../src/OrderSpoke.sol";
-import {MockERC721} from "./mocks/MockERC721.sol";
-import {TargetContract} from "./mocks/TargetContract.sol";
 import {BaseTest} from "./BaseTest.sol";
 
 contract OrderSpokeTest is BaseTest {
@@ -298,7 +298,7 @@ contract OrderSpokeTest is BaseTest {
         uint256 initialBalance = user0.balance;
         assertEq(address(spoke).balance, 0);
         vm.prank(filler);
-        spoke.fillOrder{value: totalGas}(orderRequest.order, nonce, fillerEncoded, 0, IRouter.Bridge.NULL, "");
+        spoke.fillOrder{value: totalGas}(orderRequest.order, nonce, fillerEncoded, 0, BaseRouter.Bridge.NULL, "");
 
         assertEq(address(spoke).balance, 0);
         assertEq(address(hub).balance, 0);
@@ -333,7 +333,12 @@ contract OrderSpokeTest is BaseTest {
         uint256 totalGas = orderRequest.order.callValue + extraGas;
         vm.deal(filler, totalGas);
         spoke.fillOrder{value: totalGas}(
-            orderRequest.order, nonce, fillerEncoded, orderRequest.order.callValue + extraGas, IRouter.Bridge.NULL, ""
+            orderRequest.order,
+            nonce,
+            fillerEncoded,
+            orderRequest.order.callValue + extraGas,
+            BaseRouter.Bridge.NULL,
+            ""
         );
 
         validateOrderWasFilled(user0, filler, inputAmount, outputAmount);

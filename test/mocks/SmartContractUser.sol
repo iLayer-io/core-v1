@@ -4,7 +4,7 @@ pragma solidity ^0.8.24;
 import {OptionsBuilder} from "@layerzerolabs/oapp-evm/contracts/oapp/libs/OptionsBuilder.sol";
 import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import {IRouter} from "../../src/interfaces/IRouter.sol";
+import {BaseRouter} from "../../src/routers/BaseRouter.sol";
 import {Root} from "../../src/Validator.sol";
 import {Validator} from "../../src/Validator.sol";
 import {OrderHub} from "../../src/OrderHub.sol";
@@ -32,7 +32,7 @@ contract SmartContractUser {
         bytes memory _signature,
         bytes memory options,
         uint256 fee,
-        IRouter.Bridge bridgeSelector
+        BaseRouter.Bridge bridgeSelector
     ) external {
         //bytes memory options = OptionsBuilder.newOptions().addExecutorLzReceiveOption(1e8, 0);
         orderhub.createOrder{value: fee}(request, permits, _signature, bridgeSelector, options);

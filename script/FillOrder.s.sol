@@ -7,7 +7,7 @@ import {Root} from "../src/Root.sol";
 import {OrderHub} from "../src/OrderHub.sol";
 import {OrderSpoke} from "../src/OrderSpoke.sol";
 import {OrderHelper} from "../src/libraries/OrderHelper.sol";
-import {IRouter} from "../src/interfaces/IRouter.sol";
+import {BaseRouter} from "../src/routers/BaseRouter.sol";
 
 contract FillOrderScript is Script {
     address router = vm.envAddress("ROUTER");
@@ -50,7 +50,7 @@ contract FillOrderScript is Script {
             nonce,
             maxGas,
             filler,
-            IRouter.Bridge(bridge)
+            BaseRouter.Bridge(bridge)
         );
 
         vm.stopBroadcast();

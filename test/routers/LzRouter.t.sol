@@ -4,9 +4,9 @@ pragma solidity ^0.8.24;
 import {OptionsBuilder} from "@layerzerolabs/oapp-evm/contracts/oapp/libs/OptionsBuilder.sol";
 import {TestHelperOz5} from "@layerzerolabs/test-devtools-evm-foundry/contracts/TestHelperOz5.sol";
 import {MessagingReceipt} from "@layerzerolabs/lz-evm-protocol-v2/contracts/interfaces/ILayerZeroEndpointV2.sol";
-import {IRouter} from "../../src/interfaces/IRouter.sol";
 import {OrderHelper} from "../../src/libraries/OrderHelper.sol";
 import {BytesUtils} from "../../src/libraries/BytesUtils.sol";
+import {BaseRouter} from "../../src/routers/BaseRouter.sol";
 import {LzRouter} from "../../src/routers/LzRouter.sol";
 import {TargetContract} from "../mocks/TargetContract.sol";
 
@@ -44,14 +44,16 @@ contract LzRouterTest is TestHelperOz5 {
         assertEq(target.bar(), 1);
 
         (uint256 fee, bytes memory options) = OrderHelper.getCreationLzData(address(routerA), bEid);
-        IRouter.Message memory message = IRouter.Message({
-            bridge: IRouter.Bridge.LAYERZERO,
+        BaseRouter.Message memory message = BaseRouter.Message({
+            bridge: BaseRouter.Bridge.LAYERZERO,
             chainId: bEid,
             destination: BytesUtils.addressToBytes32(address(target)),
             payload: abi.encode(amt),
             extra: options,
             sender: BytesUtils.addressToBytes32(address(this))
         });
+
+        routerA.setWhitelisted(address(this), true);
         routerA.send{value: fee * 10}(message);
         verifyPackets(bEid, BytesUtils.addressToBytes32(address(routerB)));
         assertEq(target.bar(), amt);

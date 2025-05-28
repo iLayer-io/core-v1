@@ -2,13 +2,13 @@
 pragma solidity ^0.8.24;
 
 import {MessagingReceipt} from "@layerzerolabs/lz-evm-protocol-v2/contracts/interfaces/ILayerZeroEndpointV2.sol";
-import {IRouter} from "../../src/interfaces/IRouter.sol";
+import {MockERC721} from "../mocks/MockERC721.sol";
+import {TargetContract} from "../mocks/TargetContract.sol";
 import {BytesUtils} from "../../src/libraries/BytesUtils.sol";
+import {BaseRouter} from "../../src/routers/BaseRouter.sol";
 import {Root} from "../../src/Root.sol";
 import {OrderHub} from "../../src/OrderHub.sol";
 import {OrderSpoke} from "../../src/OrderSpoke.sol";
-import {MockERC721} from "../mocks/MockERC721.sol";
-import {TargetContract} from "../mocks/TargetContract.sol";
 import {BaseTest} from "./BaseTest.sol";
 
 error RestrictedToPrimaryFiller();
@@ -290,7 +290,7 @@ contract OrderSpokeTest is BaseTest {
         bytes32 fillerEncoded = BytesUtils.addressToBytes32(filler);
         (uint256 fee, bytes memory options) = _getSettlementLzData(orderRequest.order, nonce, fillerEncoded);
         vm.expectRevert();
-        spoke.fillOrder{value: fee}(orderRequest.order, nonce, fillerEncoded, 0, IRouter.Bridge.LAYERZERO, options);
+        spoke.fillOrder{value: fee}(orderRequest.order, nonce, fillerEncoded, 0, BaseRouter.Bridge.LAYERZERO, options);
         vm.stopPrank();
     }
 
@@ -363,7 +363,9 @@ contract OrderSpokeTest is BaseTest {
         uint256 initialBalance = user0.balance;
         assertEq(address(spoke).balance, 0);
         vm.prank(filler);
-        spoke.fillOrder{value: totalGas}(orderRequest.order, nonce, fillerEncoded, 0, IRouter.Bridge.LAYERZERO, options);
+        spoke.fillOrder{value: totalGas}(
+            orderRequest.order, nonce, fillerEncoded, 0, BaseRouter.Bridge.LAYERZERO, options
+        );
         verifyPackets(aEid, BytesUtils.addressToBytes32(address(routerA)));
 
         assertEq(address(spoke).balance, 0);
@@ -412,7 +414,7 @@ contract OrderSpokeTest is BaseTest {
             nonce,
             fillerEncoded,
             orderRequest.order.callValue + extraGas,
-            IRouter.Bridge.LAYERZERO,
+            BaseRouter.Bridge.LAYERZERO,
             options
         );
         verifyPackets(aEid, BytesUtils.addressToBytes32(address(routerA)));
@@ -482,7 +484,7 @@ contract OrderSpokeTest is BaseTest {
         bytes32 fillerEncoded = BytesUtils.addressToBytes32(filler);
         (uint256 fee, bytes memory options) = _getSettlementLzData(orderRequest.order, nonce, fillerEncoded);
         vm.expectRevert();
-        spoke.fillOrder{value: fee}(orderRequest.order, nonce, fillerEncoded, 0, IRouter.Bridge.LAYERZERO, options);
+        spoke.fillOrder{value: fee}(orderRequest.order, nonce, fillerEncoded, 0, BaseRouter.Bridge.LAYERZERO, options);
         vm.stopPrank();
     }
 }

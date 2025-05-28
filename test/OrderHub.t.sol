@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.24;
 
-import {IRouter} from "../src/interfaces/IRouter.sol";
+import {MockERC721} from "./mocks/MockERC721.sol";
 import {BytesUtils} from "../src/libraries/BytesUtils.sol";
+import {BaseRouter} from "../src/routers/BaseRouter.sol";
 import {Root} from "../src/Root.sol";
 import {OrderHub} from "../src/OrderHub.sol";
-import {MockERC721} from "./mocks/MockERC721.sol";
 import {BaseTest} from "./BaseTest.sol";
 
 contract OrderHubTest is BaseTest {
@@ -317,10 +317,10 @@ contract OrderHubTest is BaseTest {
 
         contractUser.setSignature(0x1626ba7a); // invalid
         vm.expectRevert();
-        contractUser.createOrder(hub, orderRequest, permits, signature, "", 0, IRouter.Bridge.NULL);
+        contractUser.createOrder(hub, orderRequest, permits, signature, "", 0, BaseRouter.Bridge.NULL);
 
         contractUser.setSignature(0x1626ba7e); // valid
-        contractUser.createOrder(hub, orderRequest, permits, signature, "", 0, IRouter.Bridge.NULL);
+        contractUser.createOrder(hub, orderRequest, permits, signature, "", 0, BaseRouter.Bridge.NULL);
 
         assertEq(inputToken.balanceOf(address(hub)), inputAmount);
     }

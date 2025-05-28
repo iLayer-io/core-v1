@@ -4,8 +4,8 @@ pragma solidity ^0.8.24;
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {SafeERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {BytesUtils} from "./libraries/BytesUtils.sol";
-import {IRouter} from "./interfaces/IRouter.sol";
 import {IRouterCallable} from "./interfaces/IRouterCallable.sol";
+import {BaseRouter} from "./routers/BaseRouter.sol";
 import {Root} from "./Root.sol";
 import {Executor} from "./Executor.sol";
 import {RouterEnabled} from "./RouterEnabled.sol";
@@ -80,7 +80,7 @@ contract OrderSpoke is IRouterCallable, RouterEnabled, Root, ReentrancyGuard {
         uint64 orderNonce,
         bytes32 fundingWallet,
         uint256 maxGas,
-        IRouter.Bridge bridgeSelector,
+        BaseRouter.Bridge bridgeSelector,
         bytes calldata extra
     ) external payable nonReentrant {
         if (msg.value < order.callValue) revert InsufficientGasValue();
@@ -96,7 +96,7 @@ contract OrderSpoke is IRouterCallable, RouterEnabled, Root, ReentrancyGuard {
             _callHook(order, maxGas);
         }
 
-        IRouter.Message memory message = IRouter.Message({
+        BaseRouter.Message memory message = BaseRouter.Message({
             bridge: bridgeSelector,
             chainId: order.sourceChainId,
             destination: hubs[order.sourceChainId],

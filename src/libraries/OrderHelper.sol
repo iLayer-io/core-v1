@@ -3,7 +3,7 @@ pragma solidity ^0.8.24;
 
 import {OptionsBuilder} from "@layerzerolabs/oapp-evm/contracts/oapp/libs/OptionsBuilder.sol";
 import {MessagingReceipt} from "@layerzerolabs/lz-evm-protocol-v2/contracts/interfaces/ILayerZeroEndpointV2.sol";
-import {IRouter} from "../interfaces/IRouter.sol";
+import {BaseRouter} from "../routers/BaseRouter.sol";
 import {LzRouter} from "../routers/LzRouter.sol";
 import {Root} from "../Root.sol";
 import {OrderHub} from "../OrderHub.sol";
@@ -149,12 +149,12 @@ library OrderHelper {
         bytes[] memory _permits,
         bytes memory signature,
         uint256 gasValue,
-        IRouter.Bridge bridgeSelector
+        BaseRouter.Bridge bridgeSelector
     ) public returns (bytes32 orderId, uint64 nonce) {
         bytes32 _orderId;
         uint64 _nonce;
 
-        if (bridgeSelector == IRouter.Bridge.LAYERZERO) {
+        if (bridgeSelector == BaseRouter.Bridge.LAYERZERO) {
             (uint256 fee, bytes memory options) = getCreationLzData(router, destId);
             (_orderId, _nonce) =
                 hub.createOrder{value: fee + gasValue}(orderRequest, _permits, signature, bridgeSelector, options);
@@ -184,11 +184,11 @@ library OrderHelper {
         uint64 nonce,
         uint256 maxGas,
         address filler,
-        IRouter.Bridge bridgeSelector
+        BaseRouter.Bridge bridgeSelector
     ) public {
         bytes32 fillerEncoded = BytesUtils.addressToBytes32(filler);
 
-        if (bridgeSelector == IRouter.Bridge.LAYERZERO) {
+        if (bridgeSelector == BaseRouter.Bridge.LAYERZERO) {
             (uint256 fee, bytes memory options) = getSettlementLzData(router, sourceId, order, nonce, fillerEncoded);
             spoke.fillOrder{value: fee + order.callValue}(order, nonce, fillerEncoded, maxGas, bridgeSelector, options);
         } else {

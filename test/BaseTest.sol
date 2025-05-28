@@ -4,10 +4,10 @@ pragma solidity ^0.8.24;
 import {Test} from "forge-std/Test.sol";
 import {BytesUtils} from "../src/libraries/BytesUtils.sol";
 import {OrderHelper} from "../src/libraries/OrderHelper.sol";
-import {IRouter} from "../src/interfaces/IRouter.sol";
 import {Root} from "../src/Root.sol";
 import {OrderHub} from "../src/OrderHub.sol";
 import {OrderSpoke} from "../src/OrderSpoke.sol";
+import {BaseRouter} from "../src/routers/BaseRouter.sol";
 import {NullRouter} from "../src/routers/NullRouter.sol";
 import {MockERC20} from "./mocks/MockERC20.sol";
 import {MockERC721} from "./mocks/MockERC721.sol";
@@ -68,9 +68,12 @@ contract BaseTest is Test {
         vm.label(address(inputERC1155Token), "INPUT ERC1155 TOKEN");
         vm.label(address(outputToken), "OUTPUT TOKEN");
 
-        router = new NullRouter();
+        router = new NullRouter(address(this));
         hub = new OrderHub(address(this), address(router), address(0), 1 days, 0);
         spoke = new OrderSpoke(address(this), address(router));
+
+        router.setWhitelisted(address(hub), true);
+        router.setWhitelisted(address(spoke), true);
 
         vm.label(address(router), "ROUTER");
         vm.label(address(hub), "HUB");
@@ -152,7 +155,7 @@ contract BaseTest is Test {
         uint256 gasValue
     ) public payable returns (bytes32 orderId, uint64 nonce) {
         (bytes32 _orderId, uint64 _nonce) = OrderHelper.createOrder(
-            address(router), hub, bChainId, orderRequest, _permits, signature, gasValue, IRouter.Bridge.NULL
+            address(router), hub, bChainId, orderRequest, _permits, signature, gasValue, BaseRouter.Bridge.NULL
         );
 
         return (_orderId, _nonce);
@@ -165,7 +168,7 @@ contract BaseTest is Test {
         uint256 gasValue
     ) public {
         vm.expectRevert();
-        hub.createOrder{value: gasValue}(orderRequest, _permits, signature, IRouter.Bridge.NULL, "");
+        hub.createOrder{value: gasValue}(orderRequest, _permits, signature, BaseRouter.Bridge.NULL, "");
     }
 
     function buildERC721OrderRequest(
@@ -260,14 +263,14 @@ contract BaseTest is Test {
 
     function fillOrder(Root.Order memory order, uint64 nonce, uint256 maxGas, address filler) public payable {
         bytes32 fillerEncoded = BytesUtils.addressToBytes32(filler);
-        spoke.fillOrder{value: order.callValue}(order, nonce, fillerEncoded, maxGas, IRouter.Bridge.NULL, "");
+        spoke.fillOrder{value: order.callValue}(order, nonce, fillerEncoded, maxGas, BaseRouter.Bridge.NULL, "");
     }
 
     function fillOrderReverts(Root.Order memory order, uint64 nonce, uint256 maxGas, address filler) public payable {
         bytes32 fillerEncoded = BytesUtils.addressToBytes32(filler);
 
         vm.expectRevert();
-        spoke.fillOrder{value: order.callValue}(order, nonce, fillerEncoded, maxGas, IRouter.Bridge.NULL, "");
+        spoke.fillOrder{value: order.callValue}(order, nonce, fillerEncoded, maxGas, BaseRouter.Bridge.NULL, "");
     }
 
     function validateOrderWasFilled(address user, address filler, uint256 inputAmount, uint256 outputAmount)

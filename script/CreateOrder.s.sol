@@ -6,7 +6,7 @@ import {console2} from "forge-std/console2.sol";
 import {Root} from "../src/Root.sol";
 import {OrderHub} from "../src/OrderHub.sol";
 import {OrderHelper} from "../src/libraries/OrderHelper.sol";
-import {IRouter} from "../src/interfaces/IRouter.sol";
+import {BaseRouter} from "../src/routers/BaseRouter.sol";
 
 contract CreateOrderScript is Script {
     address router = vm.envAddress("ROUTER");
@@ -44,8 +44,9 @@ contract CreateOrderScript is Script {
         OrderHub hub = OrderHub(hubAddr);
         bytes memory signature = buildSignature(hub, orderRequest, userPrivateKey);
 
-        (bytes32 id, uint64 nonce) =
-            OrderHelper.createOrder(router, hub, destChain, orderRequest, permits, signature, 0, IRouter.Bridge(bridge));
+        (bytes32 id, uint64 nonce) = OrderHelper.createOrder(
+            router, hub, destChain, orderRequest, permits, signature, 0, BaseRouter.Bridge(bridge)
+        );
 
         console2.log("Order id: ");
         console2.logBytes32(id);

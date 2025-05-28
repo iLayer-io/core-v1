@@ -4,9 +4,9 @@ pragma solidity ^0.8.24;
 import {OptionsBuilder} from "@layerzerolabs/oapp-evm/contracts/oapp/libs/OptionsBuilder.sol";
 import {TestHelperOz5} from "@layerzerolabs/test-devtools-evm-foundry/contracts/TestHelperOz5.sol";
 import {MessagingReceipt} from "@layerzerolabs/lz-evm-protocol-v2/contracts/interfaces/ILayerZeroEndpointV2.sol";
-import {IRouter} from "../../src/interfaces/IRouter.sol";
 import {BytesUtils} from "../../src/libraries/BytesUtils.sol";
 import {OrderHelper} from "../../src/libraries/OrderHelper.sol";
+import {BaseRouter} from "../../src/routers/BaseRouter.sol";
 import {LzRouter} from "../../src/routers/LzRouter.sol";
 import {Root} from "../../src/Root.sol";
 import {OrderHub} from "../../src/OrderHub.sol";
@@ -101,6 +101,9 @@ contract BaseTest is TestHelperOz5 {
 
         hub = new OrderHub(address(this), address(routerA), address(0), 1 days, 0);
         spoke = new OrderSpoke(address(this), address(routerB));
+
+        routerA.setWhitelisted(address(hub), true);
+        routerB.setWhitelisted(address(spoke), true);
 
         vm.label(address(hub), "HUB");
         vm.label(address(spoke), "SPOKE");
@@ -391,7 +394,7 @@ contract BaseTest is TestHelperOz5 {
         uint256 gasValue
     ) public payable returns (bytes32 orderId, uint64 nonce) {
         (bytes32 _orderId, uint64 _nonce) = OrderHelper.createOrder(
-            address(routerA), hub, bEid, orderRequest, _permits, signature, gasValue, IRouter.Bridge.LAYERZERO
+            address(routerA), hub, bEid, orderRequest, _permits, signature, gasValue, BaseRouter.Bridge.LAYERZERO
         );
 
         verifyPackets(bEid, BytesUtils.addressToBytes32(address(routerB)));
@@ -408,7 +411,7 @@ contract BaseTest is TestHelperOz5 {
         (uint256 fee, bytes memory options) = _getCreationLzData();
 
         vm.expectRevert();
-        hub.createOrder{value: fee + gasValue}(orderRequest, _permits, signature, IRouter.Bridge.LAYERZERO, options);
+        hub.createOrder{value: fee + gasValue}(orderRequest, _permits, signature, BaseRouter.Bridge.LAYERZERO, options);
     }
 
     function fillOrder(Root.Order memory order, uint64 nonce, uint256 maxGas, address filler) public payable {
@@ -418,7 +421,7 @@ contract BaseTest is TestHelperOz5 {
         (uint256 fee, bytes memory options) = _getSettlementLzData(order, nonce, fillerEncoded);
 
         spoke.fillOrder{value: fee + order.callValue}(
-            order, nonce, fillerEncoded, maxGas, IRouter.Bridge.LAYERZERO, options
+            order, nonce, fillerEncoded, maxGas, BaseRouter.Bridge.LAYERZERO, options
         );
         verifyPackets(aEid, BytesUtils.addressToBytes32(address(routerA)));
 

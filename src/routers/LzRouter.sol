@@ -1,19 +1,18 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.24;
 
-import {Ownable} from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import {OApp, MessagingFee, MessagingReceipt, Origin} from "@layerzerolabs/oapp-evm/contracts/oapp/OApp.sol";
-import {IRouter} from "../interfaces/IRouter.sol";
 import {IRouterCallable} from "../interfaces/IRouterCallable.sol";
 import {BytesUtils} from "../libraries/BytesUtils.sol";
+import {BaseRouter} from "./BaseRouter.sol";
 
 /**
  * @title Router contract for LayzerZero
  * @dev Helper to execute cross-chain contract calls
  * @custom:security-contact security@ilayer.io
  */
-contract LzRouter is IRouter, OApp {
-    constructor(address _owner, address _router) Ownable(_owner) OApp(_router, _owner) {}
+contract LzRouter is BaseRouter, OApp {
+    constructor(address _owner, address _router) BaseRouter(_owner) OApp(_router, _owner) {}
 
     mapping(uint32 chainId => uint32 lzEid) public chainIdToLzChainEid;
     mapping(uint32 lzEid => uint32 chainId) public lzChainEidToChainId;
@@ -30,9 +29,19 @@ contract LzRouter is IRouter, OApp {
         emit LzEidUpdated(chainId, lzEid);
     }
 
-    function send(Message calldata message) external payable override {
+    function send(Message calldata message) external payable virtual override onlyWhitelisted(msg.sender) {
         if (message.bridge == Bridge.LAYERZERO) {
-            _sendWithLz(message);
+            uint32 destEid = chainIdToLzChainEid[message.chainId];
+            if (destEid == 0) revert UnsupportedLzChain();
+
+            bytes memory payload = abi.encode(message.destination, message.payload);
+            address refund = BytesUtils.bytes32ToAddress(message.sender);
+            MessagingReceipt memory receipt =
+                _lzSend(destEid, payload, message.extra, MessagingFee(msg.value, 0), payable(refund));
+
+            emit MessageRoutedLz(receipt);
+        } else if (message.bridge == Bridge.NULL) {
+            BaseRouter._relay(message);
         } else {
             revert UnsupportedBridgingRoute();
         }
@@ -45,18 +54,6 @@ contract LzRouter is IRouter, OApp {
     {
         MessagingFee memory fee = _quote(dstEid, payload, options, false);
         return fee.nativeFee;
-    }
-
-    function _sendWithLz(Message memory message) internal {
-        uint32 destEid = chainIdToLzChainEid[message.chainId];
-        if (destEid == 0) revert UnsupportedLzChain();
-
-        bytes memory payload = abi.encode(message.destination, message.payload);
-        address refund = BytesUtils.bytes32ToAddress(message.sender);
-        MessagingReceipt memory receipt =
-            _lzSend(destEid, payload, message.extra, MessagingFee(msg.value, 0), payable(refund));
-
-        emit MessageRoutedLz(receipt);
     }
 
     function _lzReceive(Origin calldata origin, bytes32, bytes calldata payload, address, bytes calldata)

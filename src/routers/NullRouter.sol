@@ -1,21 +1,22 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.24;
 
-import {IRouter} from "../interfaces/IRouter.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import {IRouterCallable} from "../interfaces/IRouterCallable.sol";
 import {BytesUtils} from "../libraries/BytesUtils.sol";
+import {BaseRouter} from "./BaseRouter.sol";
 
 /**
- * @title Base router contract
+ * @title Null router contract
  * @dev Helper to execute same-chain contract calls
  * @custom:security-contact security@ilayer.io
  */
-contract NullRouter is IRouter {
-    function send(Message calldata message) external payable override(IRouter) {
-        if (message.chainId == block.chainid) {
-            address dest = BytesUtils.bytes32ToAddress(message.destination);
-            IRouterCallable(dest).onMessageReceived(message.chainId, message.payload);
-            emit MessageBroadcasted(message);
+contract NullRouter is BaseRouter {
+    constructor(address _owner) BaseRouter(_owner) {}
+
+    function send(Message calldata message) external payable override onlyWhitelisted(msg.sender) {
+        if (message.bridge == Bridge.NULL) {
+            BaseRouter._relay(message);
         } else {
             revert UnsupportedBridgingRoute();
         }
