@@ -7,7 +7,9 @@ interface IRouter {
         LAYERZERO,
         AXELAR,
         CCIP,
-        ACROSS
+        ACROSS,
+        EVERCLEAR,
+        WORMHOLE
     }
 
     struct Message {

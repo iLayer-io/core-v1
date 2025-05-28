@@ -25,8 +25,8 @@ contract AxRouter is IRouter, AxelarExecutable, Ownable {
     event AxChainStrUpdated(uint32 indexed chainId, string indexed axChainStr);
     event MessageRoutedAx();
 
-    error UnsupportedLzChain();
-    error InvalidRouter();
+    error UnsupportedAxChain();
+    error InvalidPeer();
 
     constructor(address _owner, address gateway_, address gasService_) Ownable(_owner) AxelarExecutable(gateway_) {
         gasService = IAxelarGasService(gasService_);
@@ -47,7 +47,11 @@ contract AxRouter is IRouter, AxelarExecutable, Ownable {
 
     function send(Message calldata message) external payable override(IRouter) {
         string memory destinationChain = chainIdToAxChainStr[message.chainId];
+        if (bytes(destinationChain).length == 0) revert UnsupportedAxChain();
+
         string memory destinationAddress = routers[message.chainId];
+        if (bytes(destinationAddress).length == 0) revert InvalidPeer();
+
         bytes memory payload = abi.encode(message.destination, message.payload);
         address refund = BytesUtils.bytes32ToAddress(message.sender);
 
@@ -66,7 +70,7 @@ contract AxRouter is IRouter, AxelarExecutable, Ownable {
     {
         (address dest, bytes memory data) = abi.decode(payload, (address, bytes));
         uint32 srcChainId = AxChainStrToChainId[sourceChain];
-        if (!Strings.equal(routers[srcChainId], sourceAddress)) revert InvalidRouter();
+        if (!Strings.equal(routers[srcChainId], sourceAddress)) revert InvalidPeer();
 
         IRouterCallable(dest).onMessageReceived(srcChainId, data);
     }
