@@ -41,6 +41,18 @@ If you find bugs, please report them to *info@ilayer.io*. You may be eligible fo
 
 You can read more about how it works on our [documentation website](https://docs.ilayer.io/) or on the [official whitepaper](https://github.com/ilayer-network/whitepaper/blob/master/ilayer-whitepaper.pdf).
 
+## Deployment
+To create a new instance of iLayer, you need to deploy the smart contracts on the desired EVM-compatible blockchain. It uses the AxLzRouter by default.
+```bash
+forge script script/DeployEVM.s.sol --rpc-url "$RPC_URL" --broadcast --slow --skip-simulation --private-key "$OWNER_PRIVATE_KEY" --sender "$OWNER" --verify
+```
+
+Then run the relevant scripts to setup the router.
+For the LayerZero part:
+```bash
+forge script script/SetupLayerZeroEVM.s.sol --rpc-url "$RPC_URL" --broadcast --slow --skip-simulation --private-key "$OWNER_PRIVATE_KEY" --sender "$OWNER" --verify
+```
+
 ## Licensing
 
 The main license for the iLayer contracts is the Business Source License 1.1 (BUSL-1.1), see LICENSE file to learn more.
