@@ -55,7 +55,7 @@ contract DeployEVMScript is Script {
         console2.log("Deploying OrderSpoke...");
         address spokeAddr =
             factory.deploy(spokeSalt, abi.encodePacked(type(OrderSpoke).creationCode, abi.encode(owner, routerAddr)));
-        console2.log("Spoke deployed: ", hubAddr);
+        console2.log("Spoke deployed: ", spokeAddr);
 
         console2.log("Setup same chain hub-spoke connection...");
         OrderHub hub = OrderHub(hubAddr);
