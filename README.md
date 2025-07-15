@@ -44,13 +44,13 @@ You can read more about how it works on our [documentation website](https://docs
 ## Deployment
 To create a new instance of iLayer, you need to deploy the smart contracts on the desired EVM-compatible blockchain. It uses the AxLzRouter by default.
 ```bash
-forge script script/DeployEVM.s.sol --rpc-url "$RPC_URL" --broadcast --slow --skip-simulation --private-key "$OWNER_PRIVATE_KEY" --sender "$OWNER" --verify
+forge script script/DeployEVM.s.sol --rpc-url "$RPC_URL" --broadcast --slow --skip-simulation --private-key "$OWNER_PRIVATE_KEY" --sender "$OWNER" --verify --verifier etherscan
 ```
 
 Then run the relevant scripts to setup the router.
 For the LayerZero part:
 ```bash
-forge script script/SetupLayerZeroEVM.s.sol --rpc-url "$RPC_URL" --broadcast --slow --skip-simulation --private-key "$OWNER_PRIVATE_KEY" --sender "$OWNER" --verify
+forge script script/SetupLayerZeroEVM.s.sol --rpc-url "$RPC_URL" --broadcast --slow --skip-simulation --private-key "$OWNER_PRIVATE_KEY" --sender "$OWNER" --verify --verifier etherscan
 ```
 
 ## Licensing

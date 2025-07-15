@@ -26,3 +26,7 @@ remappings = [
 [profile.ci]
 fuzz = { runs = 1_000 }
 verbosity = 4
+
+[etherscan]
+arbitrum = { key = "${ETHERSCAN_KEY}" }
+base = { key = "${ETHERSCAN_KEY}" }

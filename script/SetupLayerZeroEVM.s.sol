@@ -17,6 +17,8 @@ contract SetupLayerZeroEVMScript is Script {
     uint32 chainId = uint32(vm.envUint("CHAIN_ID"));
     uint32 lzEid = uint32(vm.envUint("LZ_EID"));
     bool isMixedRouter = vm.envExists("IS_MIXED_ROUTER");
+    address hub = vm.envAddress("HUB");
+    address spoke = vm.envAddress("SPOKE");
 
     function run() external {
         vm.startBroadcast(ownerPrivateKey);
@@ -26,11 +28,15 @@ contract SetupLayerZeroEVMScript is Script {
             AxLzRouter router = AxLzRouter(routerAddr);
             router.setLzEid(chainId, lzEid);
             router.setPeer(lzEid, addressToBytes32(peerRouter));
+            router.setWhitelisted(hub, true);
+            router.setWhitelisted(spoke, true);
         } else {
             console2.log("Setup of LzRouter in progress...");
             LzRouter router = LzRouter(routerAddr);
             router.setLzEid(chainId, lzEid);
             router.setPeer(lzEid, addressToBytes32(peerRouter));
+            router.setWhitelisted(hub, true);
+            router.setWhitelisted(spoke, true);
         }
         console2.log("Setup completed");
 

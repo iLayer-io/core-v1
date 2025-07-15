@@ -58,11 +58,15 @@ contract DeployEVMScript is Script {
         console2.log("Spoke deployed: ", spokeAddr);
 
         console2.log("Setup same chain hub-spoke connection...");
+        
         OrderHub hub = OrderHub(hubAddr);
         OrderSpoke spoke = OrderSpoke(spokeAddr);
 
         hub.setSpokeAddress(uint32(block.chainid), addressToBytes32(spokeAddr));
         spoke.setHubAddress(uint32(block.chainid), addressToBytes32(hubAddr));
+
+        hub.setSpokeAddress(uint32(42161), addressToBytes32(spokeAddr));
+        spoke.setHubAddress(uint32(42161), addressToBytes32(hubAddr));
         console2.log("Completed");
 
         vm.stopBroadcast();
