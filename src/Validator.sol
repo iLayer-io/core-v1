@@ -24,7 +24,7 @@ contract Validator is Root, EIP712 {
             "uint64 primaryFillerDeadline,",
             "uint64 deadline,",
             "bytes32 callRecipient,",
-            "bytes callData",
+            "bytes callData,",
             "uint256 callValue",
             ")",
             "Token(uint8 tokenType,bytes32 tokenAddress,uint256 tokenId,uint256 amount)"
@@ -50,7 +50,7 @@ contract Validator is Root, EIP712 {
             "uint64 primaryFillerDeadline,",
             "uint64 deadline,",
             "bytes32 callRecipient,",
-            "bytes callData",
+            "bytes callData,",
             "uint256 callValue",
             ")",
             "Token(uint8 tokenType,bytes32 tokenAddress,uint256 tokenId,uint256 amount)"
