@@ -8,6 +8,7 @@ import {OrderHub} from "../src/OrderHub.sol";
 import {OrderSpoke} from "../src/OrderSpoke.sol";
 import {LzRouter} from "../src/routers/LzRouter.sol";
 import {AxLzRouter} from "../src/routers/AxLzRouter.sol";
+import {LayerZeroHelper} from "./LayerZeroHelper.sol";
 
 contract SetupLayerZeroEVMScript is Script {
     address owner = vm.envAddress("OWNER");
@@ -15,13 +16,13 @@ contract SetupLayerZeroEVMScript is Script {
     address routerAddr = vm.envAddress("ROUTER");
     address peerRouter = vm.envAddress("PEER_ROUTER");
     uint32 chainId = uint32(vm.envUint("CHAIN_ID"));
-    uint32 lzEid = uint32(vm.envUint("LZ_EID"));
     bool isMixedRouter = vm.envExists("IS_MIXED_ROUTER");
     address hub = vm.envAddress("HUB");
     address spoke = vm.envAddress("SPOKE");
 
     function run() external {
         vm.startBroadcast(ownerPrivateKey);
+        uint32 lzEid = LayerZeroHelper.getEid(chainId);
 
         if (isMixedRouter) {
             console2.log("Setup of AxLzRouter in progress...");

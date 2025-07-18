@@ -42,15 +42,32 @@ If you find bugs, please report them to *info@ilayer.io*. You may be eligible fo
 You can read more about how it works on our [documentation website](https://docs.ilayer.io/) or on the [official whitepaper](https://github.com/ilayer-network/whitepaper/blob/master/ilayer-whitepaper.pdf).
 
 ## Deployment
-To create a new instance of iLayer, you need to deploy the smart contracts on the desired EVM-compatible blockchain. It uses the AxLzRouter by default.
+The process is as follows.
+
+### Step 1: Deploy contracts
+Run the `DeployEVM` script to deploy contracts (Router, OrderHub, OrderSpoke) on the selected EVM-compatible chain. Contracts are deployed using Create3 and verified on Etherscan.
+
 ```bash
-forge script script/DeployEVM.s.sol --rpc-url "$RPC_URL" --broadcast --slow --skip-simulation --private-key "$OWNER_PRIVATE_KEY" --sender "$OWNER" --verify --verifier etherscan
+forge script script/DeployEVM.s.sol --rpc-url "$RPC_URL" --broadcast --slow --private-key "$OWNER_PRIVATE_KEY" --sender "$OWNER" --verify --verifier etherscan --etherscan-api-key "$ETHERSCAN_KEY"
 ```
 
-Then run the relevant scripts to setup the router.
-For the LayerZero part:
+### Step 2: Setup the Router
+
+#### LayerZero
+Run the `SetupLayerZeroEVM` script to set the chainID -> chainEid mapping.
+
 ```bash
-forge script script/SetupLayerZeroEVM.s.sol --rpc-url "$RPC_URL" --broadcast --slow --skip-simulation --private-key "$OWNER_PRIVATE_KEY" --sender "$OWNER" --verify --verifier etherscan
+forge script script/SetupLayerZeroEVM.s.sol --rpc-url "$RPC_URL" --broadcast --slow --private-key "$OWNER_PRIVATE_KEY" --sender "$OWNER"
+```
+
+#### Axelar
+*TBD*
+
+### Step 3: Setup the OrderHub and OrderSpoke
+We need to whitelist the Hub and Spoke for each chain supported by running `setSpokeAddress` and `setHubAddress`.
+
+```bash
+forge script script/SetupHubSpoke.s.sol --rpc-url "$RPC_URL" --broadcast --slow --private-key "$OWNER_PRIVATE_KEY" --sender "$OWNER"
 ```
 
 ## Licensing
