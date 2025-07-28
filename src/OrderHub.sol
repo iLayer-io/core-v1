@@ -57,6 +57,7 @@ contract OrderHub is
     error OrderDeadlinesMismatch();
     error OrderPrimaryFillerExpired();
     error OrderCannotBeWithdrawn();
+    error OrderNotExpiredYet();
     error OrderCannotBeFilled();
     error OrderExpired();
 
@@ -149,9 +150,9 @@ contract OrderHub is
     function withdrawOrder(Order memory order, uint64 orderNonce) external nonReentrant {
         address user = BytesUtils.bytes32ToAddress(order.user);
         bytes32 orderId = getOrderId(order, orderNonce);
-        if (user != _msgSender() || order.deadline + timeBuffer > block.timestamp || orders[orderId] != Status.ACTIVE) {
-            revert OrderCannotBeWithdrawn();
-        }
+
+        if (order.deadline + timeBuffer > block.timestamp) revert OrderNotExpiredYet();
+        if (orders[orderId] != Status.ACTIVE) revert OrderCannotBeWithdrawn();
 
         orders[orderId] = Status.WITHDRAWN;
 

@@ -132,13 +132,9 @@ contract OrderHubTest is BaseTest {
         hub.withdrawOrder(orderRequest.order, 1);
         vm.stopPrank();
 
-        vm.warp(block.timestamp + 5 minutes);
-        vm.startPrank(user1);
-        vm.expectRevert();
-        hub.withdrawOrder(orderRequest.order, 1);
-        vm.stopPrank();
-
         assertEq(inputToken.balanceOf(address(hub)), inputAmount);
+
+        vm.warp(block.timestamp + 1 days);
 
         vm.prank(user0);
         hub.withdrawOrder(orderRequest.order, 1);
