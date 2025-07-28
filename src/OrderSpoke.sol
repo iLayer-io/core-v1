@@ -84,6 +84,7 @@ contract OrderSpoke is IRouterCallable, RouterEnabled, Root, ReentrancyGuard {
         bytes calldata extra
     ) external payable nonReentrant {
         if (msg.value < order.callValue) revert InsufficientGasValue();
+        if (fundingWallet == hubs[order.sourceChainId] || fundingWallet == bytes32(0)) revert("aaa");
 
         bytes32 orderId = getOrderId(order, orderNonce);
         _validateOrder(order, orderId);
