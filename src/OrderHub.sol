@@ -49,6 +49,7 @@ contract OrderHub is
     error RequestNonceReused();
     error RequestExpired();
     error UndefinedSpoke();
+    error InvalidSender();
     error InvalidRecipient();
     error InvalidOrderInputApprovals();
     error InvalidOrderSignature();
@@ -226,7 +227,8 @@ contract OrderHub is
         if (order.inputs.length != permits.length) revert InvalidOrderInputApprovals();
         if (order.primaryFillerDeadline > order.deadline) revert OrderDeadlinesMismatch();
         if (spokes[order.destinationChainId] == "") revert UndefinedSpoke();
-        if (order.user == bytes32(0)) revert InvalidRecipient();
+        if (order.user == bytes32(0)) revert InvalidSender();
+        if (order.recipient == bytes32(0)) revert InvalidRecipient();
 
         uint256 timestamp = block.timestamp;
         if (timestamp >= order.deadline) revert OrderExpired();
