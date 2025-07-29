@@ -32,6 +32,7 @@ contract AxLzRouter is BaseRouter, AxelarExecutable, OApp {
 
     error UnsupportedAxChain();
     error UnsupportedLzChain();
+    error InvalidChainId();
     error InvalidPeer();
 
     constructor(address _owner, address _gateway, address _gasService, address _router)
@@ -103,6 +104,7 @@ contract AxLzRouter is BaseRouter, AxelarExecutable, OApp {
     {
         (address dest, bytes memory data) = abi.decode(payload, (address, bytes));
         uint32 srcChainId = AxChainStrToChainId[sourceChain];
+        if (srcChainId == 0) revert InvalidChainId();
         if (!Strings.equal(routers[srcChainId], sourceAddress)) revert InvalidPeer();
 
         IRouterCallable(dest).onMessageReceived(srcChainId, data);

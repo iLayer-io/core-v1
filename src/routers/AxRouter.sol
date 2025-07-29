@@ -25,6 +25,7 @@ contract AxRouter is BaseRouter, AxelarExecutable {
     event MessageRoutedAx();
 
     error UnsupportedAxChain();
+    error InvalidChainId();
     error InvalidPeer();
 
     constructor(address _owner, address _gateway, address _gasService) BaseRouter(_owner) AxelarExecutable(_gateway) {
@@ -75,6 +76,7 @@ contract AxRouter is BaseRouter, AxelarExecutable {
     {
         (address dest, bytes memory data) = abi.decode(payload, (address, bytes));
         uint32 srcChainId = AxChainStrToChainId[sourceChain];
+        if (srcChainId == 0) revert InvalidChainId();
         if (!Strings.equal(routers[srcChainId], sourceAddress)) revert InvalidPeer();
 
         IRouterCallable(dest).onMessageReceived(srcChainId, data);
