@@ -51,6 +51,7 @@ contract OrderHub is
     error UndefinedSpoke();
     error InvalidOrderInputApprovals();
     error InvalidOrderSignature();
+    error InvalidCallRecipient();
     error InvalidDeadline();
     error InvalidSourceChain();
     error InvalidDestinationChain();
@@ -101,6 +102,9 @@ contract OrderHub is
         if (requestNonces[user][request.nonce]) revert RequestNonceReused();
         if (block.timestamp > request.deadline) revert RequestExpired();
         if (!validateOrderRequest(request, signature)) revert InvalidOrderSignature();
+        if (request.order.callData.length > 0 && request.order.callRecipient == bytes32(0)) {
+            revert InvalidCallRecipient();
+        }
 
         // validate order
         _checkOrderValidity(order, permits);
