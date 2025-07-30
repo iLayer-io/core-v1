@@ -52,7 +52,7 @@ contract OrderSpokeTest is BaseTest {
         vm.stopPrank();
 
         assertEq(inputToken.balanceOf(address(hub)), inputAmount, "Input token not transferred to Hub");
-        assertTrue(spoke.orders(orderID) == OrderSpoke.OrderStatus.PENDING, "Order not registered by the spoke");
+        assertTrue(spoke.orders(orderID) == Root.Status.PENDING, "Order not registered by the spoke");
 
         vm.startPrank(filler);
         outputToken.mint(filler, outputAmount);
@@ -86,7 +86,7 @@ contract OrderSpokeTest is BaseTest {
         vm.stopPrank();
 
         assertEq(inputToken.balanceOf(address(hub)), inputAmount, "Input token not transferred to Hub");
-        assertTrue(spoke.orders(orderID) == OrderSpoke.OrderStatus.PENDING);
+        assertTrue(spoke.orders(orderID) == Root.Status.PENDING);
 
         vm.startPrank(filler);
         outputToken.mint(filler, outputAmount);

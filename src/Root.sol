@@ -10,6 +10,7 @@ contract Root {
 
     enum Status {
         NULL,
+        PENDING,
         ACTIVE,
         FILLED,
         WITHDRAWN
