@@ -14,11 +14,7 @@ abstract contract BaseRouter is Ownable {
     enum Bridge {
         NULL,
         LAYERZERO,
-        AXELAR,
-        CCIP,
-        ACROSS,
-        EVERCLEAR,
-        WORMHOLE
+        AXELAR
     }
 
     struct Message {

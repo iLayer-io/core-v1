@@ -27,6 +27,9 @@ contract BaseTest is TestHelperOz5 {
     uint32 public constant aEid = 1;
     uint32 public constant bEid = 2;
 
+    uint8 public constant NULL_BRIDGE = 0;
+    uint8 public constant LAYERZERO_BRIDGE = 1;
+
     bytes[] public permits;
     bytes[] public permits2;
 
@@ -394,7 +397,7 @@ contract BaseTest is TestHelperOz5 {
         uint256 gasValue
     ) public payable returns (bytes32 orderId, uint64 nonce) {
         (bytes32 _orderId, uint64 _nonce) = OrderHelper.createOrder(
-            address(routerA), hub, bEid, orderRequest, _permits, signature, gasValue, BaseRouter.Bridge.LAYERZERO
+            address(routerA), hub, bEid, orderRequest, _permits, signature, gasValue, LAYERZERO_BRIDGE
         );
 
         verifyPackets(bEid, BytesUtils.addressToBytes32(address(routerB)));
@@ -411,7 +414,7 @@ contract BaseTest is TestHelperOz5 {
         (uint256 fee, bytes memory options) = _getCreationLzData();
 
         vm.expectRevert();
-        hub.createOrder{value: fee + gasValue}(orderRequest, _permits, signature, BaseRouter.Bridge.LAYERZERO, options);
+        hub.createOrder{value: fee + gasValue}(orderRequest, _permits, signature, LAYERZERO_BRIDGE, options);
     }
 
     function fillOrder(Root.Order memory order, uint64 nonce, uint256 maxGas, address filler) public payable {

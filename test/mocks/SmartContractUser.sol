@@ -32,7 +32,7 @@ contract SmartContractUser {
         bytes memory _signature,
         bytes memory options,
         uint256 fee,
-        BaseRouter.Bridge bridgeSelector
+        uint8 bridgeSelector
     ) external {
         //bytes memory options = OptionsBuilder.newOptions().addExecutorLzReceiveOption(1e8, 0);
         orderhub.createOrder{value: fee}(request, permits, _signature, bridgeSelector, options);

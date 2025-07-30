@@ -95,7 +95,7 @@ contract OrderHub is
         OrderRequest memory request,
         bytes[] memory permits,
         bytes memory signature,
-        BaseRouter.Bridge bridgeSelector,
+        uint8 bridgeSelector,
         bytes calldata extra
     ) external payable nonReentrant returns (bytes32, uint64) {
         Order memory order = request.order;
@@ -139,7 +139,7 @@ contract OrderHub is
         }
 
         BaseRouter.Message memory message = BaseRouter.Message({
-            bridge: bridgeSelector,
+            bridge: BaseRouter.Bridge(bridgeSelector),
             chainId: order.destinationChainId,
             destination: spokes[order.destinationChainId],
             payload: abi.encode(orderId),

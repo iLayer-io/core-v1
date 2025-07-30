@@ -10,7 +10,7 @@ import {BaseRouter} from "../src/routers/BaseRouter.sol";
 
 contract CreateOrderScript is Script {
     address router = vm.envAddress("ROUTER");
-    uint256 bridge = vm.envUint("BRIDGE");
+    uint8 bridge = uint8(vm.envUint("BRIDGE"));
     uint32 sourceChain = uint32(vm.envUint("SOURCE_CHAIN"));
     uint32 destChain = uint32(vm.envUint("DEST_CHAIN"));
     uint256 userPrivateKey = vm.envUint("USER_PRIVATE_KEY");
@@ -44,9 +44,8 @@ contract CreateOrderScript is Script {
         OrderHub hub = OrderHub(hubAddr);
         bytes memory signature = buildSignature(hub, orderRequest, userPrivateKey);
 
-        (bytes32 id, uint64 nonce) = OrderHelper.createOrder(
-            router, hub, destChain, orderRequest, permits, signature, 0, BaseRouter.Bridge(bridge)
-        );
+        (bytes32 id, uint64 nonce) =
+            OrderHelper.createOrder(router, hub, destChain, orderRequest, permits, signature, 0, bridge);
 
         console2.log("Order id: ");
         console2.logBytes32(id);
