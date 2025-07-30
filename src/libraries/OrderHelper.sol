@@ -2,7 +2,6 @@
 pragma solidity ^0.8.24;
 
 import {OptionsBuilder} from "@layerzerolabs/oapp-evm/contracts/oapp/libs/OptionsBuilder.sol";
-import {MessagingReceipt} from "@layerzerolabs/lz-evm-protocol-v2/contracts/interfaces/ILayerZeroEndpointV2.sol";
 import {BaseRouter} from "../routers/BaseRouter.sol";
 import {LzRouter} from "../routers/LzRouter.sol";
 import {Root} from "../Root.sol";
