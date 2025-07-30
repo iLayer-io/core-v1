@@ -18,18 +18,12 @@ import {RouterEnabled} from "./RouterEnabled.sol";
 contract OrderSpoke is IRouterCallable, RouterEnabled, Root, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
-    enum OrderStatus {
-        NULL,
-        PENDING,
-        FILLED
-    }
-
     uint16 public constant MAX_RETURNDATA_COPY_SIZE = 32;
     uint256 public constant FEE_RESOLUTION = 10_000;
     Executor public immutable executor;
 
     mapping(uint32 chainId => bytes32 hub) public hubs;
-    mapping(bytes32 => OrderStatus) public orders;
+    mapping(bytes32 => Status) public orders;
     uint256 public fee;
 
     event HubUpdated(uint32 chainId, bytes32 oldHubAddr, bytes32 newHubAddr);
@@ -89,7 +83,7 @@ contract OrderSpoke is IRouterCallable, RouterEnabled, Root, ReentrancyGuard {
 
         bytes32 orderId = getOrderId(order, orderNonce);
         _validateOrder(order, orderId);
-        orders[orderId] = OrderStatus.FILLED;
+        orders[orderId] = Status.FILLED;
 
         uint256 nativeValue = _transferFunds(order);
         if (order.callData.length > 0) {
@@ -115,8 +109,8 @@ contract OrderSpoke is IRouterCallable, RouterEnabled, Root, ReentrancyGuard {
         uint64 currentTime = uint64(block.timestamp);
         if (hubs[order.sourceChainId] == "") revert UndefinedHub(); // avoids filling an order we cannot dispatch
         if (currentTime > order.deadline) revert OrderExpired();
-        if (orders[orderId] == OrderStatus.NULL) revert InvalidOrder();
-        if (orders[orderId] == OrderStatus.FILLED) revert OrderAlreadyFilled();
+        if (orders[orderId] == Status.NULL) revert InvalidOrder();
+        if (orders[orderId] == Status.FILLED) revert OrderAlreadyFilled();
         if (order.destinationChainId != block.chainid) revert InvalidDestinationChain();
 
         address filler = BytesUtils.bytes32ToAddress(order.filler);
@@ -174,7 +168,7 @@ contract OrderSpoke is IRouterCallable, RouterEnabled, Root, ReentrancyGuard {
         if (hubs[srcChainId] == "") revert UndefinedHub(); // avoids saving an order we cannot fill
 
         (bytes32 orderId) = abi.decode(data, (bytes32));
-        orders[orderId] = OrderStatus.PENDING;
+        orders[orderId] = Status.PENDING;
 
         emit PendingOrderReceived(orderId, srcChainId);
     }
