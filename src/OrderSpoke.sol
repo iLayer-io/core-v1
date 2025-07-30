@@ -41,6 +41,7 @@ contract OrderSpoke is IRouterCallable, RouterEnabled, Root, ReentrancyGuard {
     );
 
     error UndefinedHub();
+    error InvalidFundingWallet();
     error InvalidFeeValue();
     error InvalidOrder();
     error OrderAlreadyFilled();
@@ -84,6 +85,7 @@ contract OrderSpoke is IRouterCallable, RouterEnabled, Root, ReentrancyGuard {
         bytes calldata extra
     ) external payable nonReentrant {
         if (msg.value < order.callValue) revert InsufficientGasValue();
+        if (fundingWallet == hubs[order.sourceChainId] || fundingWallet == bytes32(0)) revert InvalidFundingWallet();
 
         bytes32 orderId = getOrderId(order, orderNonce);
         _validateOrder(order, orderId);
