@@ -15,6 +15,8 @@ import {MockERC1155} from "./mocks/MockERC1155.sol";
 import {SmartContractUser} from "./mocks/SmartContractUser.sol";
 
 contract BaseTest is Test {
+    uint8 public constant NULL_BRIDGE = 0;
+
     bytes[] public permits;
     bytes[] public permits2;
     uint32 public aChainId;
@@ -155,7 +157,7 @@ contract BaseTest is Test {
         uint256 gasValue
     ) public payable returns (bytes32 orderId, uint64 nonce) {
         (bytes32 _orderId, uint64 _nonce) = OrderHelper.createOrder(
-            address(router), hub, bChainId, orderRequest, _permits, signature, gasValue, BaseRouter.Bridge.NULL
+            address(router), hub, bChainId, orderRequest, _permits, signature, gasValue, NULL_BRIDGE
         );
 
         return (_orderId, _nonce);
@@ -168,7 +170,7 @@ contract BaseTest is Test {
         uint256 gasValue
     ) public {
         vm.expectRevert();
-        hub.createOrder{value: gasValue}(orderRequest, _permits, signature, BaseRouter.Bridge.NULL, "");
+        hub.createOrder{value: gasValue}(orderRequest, _permits, signature, 0, /* NULL BRIDGE */ "");
     }
 
     function buildERC721OrderRequest(

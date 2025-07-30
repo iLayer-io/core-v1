@@ -148,12 +148,14 @@ library OrderHelper {
         bytes[] memory _permits,
         bytes memory signature,
         uint256 gasValue,
-        BaseRouter.Bridge bridgeSelector
+        uint8 bridgeSelector
     ) public returns (bytes32 orderId, uint64 nonce) {
         bytes32 _orderId;
         uint64 _nonce;
 
-        if (bridgeSelector == BaseRouter.Bridge.LAYERZERO) {
+        BaseRouter.Bridge bridge = BaseRouter.Bridge(bridgeSelector);
+
+        if (bridge == BaseRouter.Bridge.LAYERZERO) {
             (uint256 fee, bytes memory options) = getCreationLzData(router, destId);
             (_orderId, _nonce) =
                 hub.createOrder{value: fee + gasValue}(orderRequest, _permits, signature, bridgeSelector, options);

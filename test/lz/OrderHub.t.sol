@@ -380,10 +380,10 @@ contract OrderHubTest is BaseTest {
 
         contractUser.setSignature(0x1626ba7a); // invalid
         vm.expectRevert();
-        contractUser.createOrder(hub, orderRequest, permits, signature, options, fee, BaseRouter.Bridge.LAYERZERO);
+        contractUser.createOrder(hub, orderRequest, permits, signature, options, fee, LAYERZERO_BRIDGE);
 
         contractUser.setSignature(0x1626ba7e); // valid
-        contractUser.createOrder(hub, orderRequest, permits, signature, options, fee, BaseRouter.Bridge.LAYERZERO);
+        contractUser.createOrder(hub, orderRequest, permits, signature, options, fee, LAYERZERO_BRIDGE);
 
         assertEq(inputToken.balanceOf(address(hub)), inputAmount);
     }
