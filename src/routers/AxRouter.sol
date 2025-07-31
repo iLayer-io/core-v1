@@ -46,7 +46,8 @@ contract AxRouter is BaseRouter, AxelarExecutable {
     }
 
     function send(Message calldata message) external payable virtual override onlyWhitelisted(msg.sender) {
-        if (message.bridge == Bridge.AXELAR) {
+        Bridge selectedBridge = Bridge(message.bridge);
+        if (selectedBridge == Bridge.AXELAR) {
             string memory destinationChain = chainIdToAxChainStr[message.chainId];
             if (bytes(destinationChain).length == 0) revert UnsupportedAxChain();
 
@@ -63,7 +64,7 @@ contract AxRouter is BaseRouter, AxelarExecutable {
             gateway().callContract(destinationChain, destinationAddress, payload);
 
             emit MessageRoutedAx();
-        } else if (message.bridge == Bridge.NULL) {
+        } else if (selectedBridge == Bridge.NULL) {
             BaseRouter._relay(message);
         } else {
             revert UnsupportedBridgingRoute();

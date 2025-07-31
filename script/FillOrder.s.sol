@@ -11,7 +11,7 @@ import {BaseRouter} from "../src/routers/BaseRouter.sol";
 
 contract FillOrderScript is Script {
     address router = vm.envAddress("ROUTER");
-    uint256 bridge = vm.envUint("BRIDGE");
+    uint8 bridge = uint8(vm.envUint("BRIDGE"));
     uint32 sourceChain = uint32(vm.envUint("SOURCE_CHAIN"));
     uint32 destChain = uint32(vm.envUint("DEST_CHAIN"));
     address user = vm.envAddress("USER");
@@ -43,14 +43,7 @@ contract FillOrderScript is Script {
             deadlineOffset
         );
         OrderHelper.fillOrder(
-            router,
-            OrderSpoke(spokeAddr),
-            sourceChain,
-            orderRequest.order,
-            nonce,
-            maxGas,
-            filler,
-            BaseRouter.Bridge(bridge)
+            router, OrderSpoke(spokeAddr), sourceChain, orderRequest.order, nonce, maxGas, filler, bridge
         );
 
         vm.stopBroadcast();

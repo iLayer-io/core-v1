@@ -12,7 +12,8 @@ contract NullRouter is BaseRouter {
     constructor(address _owner) BaseRouter(_owner) {}
 
     function send(Message calldata message) external payable override onlyWhitelisted(msg.sender) {
-        if (message.bridge == Bridge.NULL) {
+        Bridge selectedBridge = Bridge(message.bridge);
+        if (selectedBridge == Bridge.NULL) {
             BaseRouter._relay(message);
         } else {
             revert UnsupportedBridgingRoute();

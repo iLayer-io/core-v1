@@ -18,7 +18,7 @@ abstract contract BaseRouter is Ownable {
     }
 
     struct Message {
-        Bridge bridge;
+        uint8 bridge;
         uint32 chainId;
         bytes32 destination;
         bytes payload;

@@ -64,7 +64,8 @@ contract AxLzRouter is BaseRouter, AxelarExecutable, OApp {
     }
 
     function send(Message calldata message) external payable virtual override onlyWhitelisted(msg.sender) {
-        if (message.bridge == Bridge.AXELAR) {
+        Bridge selectedBridge = Bridge(message.bridge);
+        if (selectedBridge == Bridge.AXELAR) {
             string memory destinationChain = chainIdToAxChainStr[message.chainId];
             if (bytes(destinationChain).length == 0) revert UnsupportedAxChain();
 
@@ -81,7 +82,7 @@ contract AxLzRouter is BaseRouter, AxelarExecutable, OApp {
             gateway().callContract(destinationChain, destinationAddress, payload);
 
             emit MessageRoutedAx();
-        } else if (message.bridge == Bridge.LAYERZERO) {
+        } else if (selectedBridge == Bridge.LAYERZERO) {
             uint32 destEid = chainIdToLzChainEid[message.chainId];
             if (destEid == 0) revert UnsupportedLzChain();
 
@@ -91,7 +92,7 @@ contract AxLzRouter is BaseRouter, AxelarExecutable, OApp {
                 _lzSend(destEid, payload, message.extra, MessagingFee(msg.value, 0), payable(refund));
 
             emit MessageRoutedLz(receipt);
-        } else if (message.bridge == Bridge.NULL) {
+        } else if (selectedBridge == Bridge.NULL) {
             BaseRouter._relay(message);
         } else {
             revert UnsupportedBridgingRoute();

@@ -185,11 +185,12 @@ library OrderHelper {
         uint64 nonce,
         uint256 maxGas,
         address filler,
-        BaseRouter.Bridge bridgeSelector
+        uint8 bridgeSelector
     ) public {
         bytes32 fillerEncoded = BytesUtils.addressToBytes32(filler);
 
-        if (bridgeSelector == BaseRouter.Bridge.LAYERZERO) {
+        BaseRouter.Bridge selectedBridge = BaseRouter.Bridge(bridgeSelector);
+        if (selectedBridge == BaseRouter.Bridge.LAYERZERO) {
             (uint256 fee, bytes memory options) = getSettlementLzData(router, sourceId, order, nonce, fillerEncoded);
             spoke.fillOrder{value: fee + order.callValue}(order, nonce, fillerEncoded, maxGas, bridgeSelector, options);
         } else {

@@ -139,7 +139,7 @@ contract OrderHub is
         }
 
         BaseRouter.Message memory message = BaseRouter.Message({
-            bridge: BaseRouter.Bridge(bridgeSelector),
+            bridge: bridgeSelector,
             chainId: order.destinationChainId,
             destination: spokes[order.destinationChainId],
             payload: abi.encode(orderId),

@@ -15,6 +15,7 @@ contract LzRouterTest is TestHelperOz5 {
 
     uint32 public constant aEid = 1;
     uint32 public constant bEid = 2;
+    uint8 public constant LAYERZERO_BRIDGE = 1;
     TargetContract public target;
     LzRouter public routerA;
     LzRouter public routerB;
@@ -45,7 +46,7 @@ contract LzRouterTest is TestHelperOz5 {
 
         (uint256 fee, bytes memory options) = OrderHelper.getCreationLzData(address(routerA), bEid);
         BaseRouter.Message memory message = BaseRouter.Message({
-            bridge: BaseRouter.Bridge.LAYERZERO,
+            bridge: LAYERZERO_BRIDGE,
             chainId: bEid,
             destination: BytesUtils.addressToBytes32(address(target)),
             payload: abi.encode(amt),

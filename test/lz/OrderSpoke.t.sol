@@ -290,7 +290,7 @@ contract OrderSpokeTest is BaseTest {
         bytes32 fillerEncoded = BytesUtils.addressToBytes32(filler);
         (uint256 fee, bytes memory options) = _getSettlementLzData(orderRequest.order, nonce, fillerEncoded);
         vm.expectRevert();
-        spoke.fillOrder{value: fee}(orderRequest.order, nonce, fillerEncoded, 0, BaseRouter.Bridge.LAYERZERO, options);
+        spoke.fillOrder{value: fee}(orderRequest.order, nonce, fillerEncoded, 0, LAYERZERO_BRIDGE, options);
         vm.stopPrank();
     }
 
@@ -363,9 +363,7 @@ contract OrderSpokeTest is BaseTest {
         uint256 initialBalance = user0.balance;
         assertEq(address(spoke).balance, 0);
         vm.prank(filler);
-        spoke.fillOrder{value: totalGas}(
-            orderRequest.order, nonce, fillerEncoded, 0, BaseRouter.Bridge.LAYERZERO, options
-        );
+        spoke.fillOrder{value: totalGas}(orderRequest.order, nonce, fillerEncoded, 0, LAYERZERO_BRIDGE, options);
         verifyPackets(aEid, BytesUtils.addressToBytes32(address(routerA)));
 
         assertEq(address(spoke).balance, 0);
@@ -410,12 +408,7 @@ contract OrderSpokeTest is BaseTest {
         uint256 totalGas = orderRequest.order.callValue + fee + extraGas;
         vm.deal(filler, totalGas);
         spoke.fillOrder{value: totalGas}(
-            orderRequest.order,
-            nonce,
-            fillerEncoded,
-            orderRequest.order.callValue + extraGas,
-            BaseRouter.Bridge.LAYERZERO,
-            options
+            orderRequest.order, nonce, fillerEncoded, orderRequest.order.callValue + extraGas, LAYERZERO_BRIDGE, options
         );
         verifyPackets(aEid, BytesUtils.addressToBytes32(address(routerA)));
 
@@ -484,7 +477,7 @@ contract OrderSpokeTest is BaseTest {
         bytes32 fillerEncoded = BytesUtils.addressToBytes32(filler);
         (uint256 fee, bytes memory options) = _getSettlementLzData(orderRequest.order, nonce, fillerEncoded);
         vm.expectRevert();
-        spoke.fillOrder{value: fee}(orderRequest.order, nonce, fillerEncoded, 0, BaseRouter.Bridge.LAYERZERO, options);
+        spoke.fillOrder{value: fee}(orderRequest.order, nonce, fillerEncoded, 0, LAYERZERO_BRIDGE, options);
         vm.stopPrank();
     }
 }

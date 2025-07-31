@@ -423,9 +423,7 @@ contract BaseTest is TestHelperOz5 {
         bytes32 fillerEncoded = BytesUtils.addressToBytes32(filler);
         (uint256 fee, bytes memory options) = _getSettlementLzData(order, nonce, fillerEncoded);
 
-        spoke.fillOrder{value: fee + order.callValue}(
-            order, nonce, fillerEncoded, maxGas, BaseRouter.Bridge.LAYERZERO, options
-        );
+        spoke.fillOrder{value: fee + order.callValue}(order, nonce, fillerEncoded, maxGas, LAYERZERO_BRIDGE, options);
         verifyPackets(aEid, BytesUtils.addressToBytes32(address(routerA)));
 
         vm.chainId(aEid);

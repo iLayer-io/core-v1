@@ -10,6 +10,7 @@ import {TargetContract} from "../mocks/TargetContract.sol";
 contract NullRouterTest is Test {
     NullRouter public immutable router;
     TargetContract public immutable target;
+    uint8 public constant NULL_BRIDGE = 0;
 
     constructor() {
         router = new NullRouter(address(this));
@@ -19,7 +20,7 @@ contract NullRouterTest is Test {
 
     function testCorrectlyRoutesMsg(uint256 amt) external {
         BaseRouter.Message memory message = BaseRouter.Message({
-            bridge: BaseRouter.Bridge.NULL,
+            bridge: NULL_BRIDGE,
             chainId: uint32(block.chainid),
             destination: BytesUtils.addressToBytes32(address(target)),
             payload: abi.encode(amt),
@@ -38,7 +39,7 @@ contract NullRouterTest is Test {
 
     function testRevertsUnsupportedBridgingRoute() external {
         BaseRouter.Message memory message = BaseRouter.Message({
-            bridge: BaseRouter.Bridge.NULL,
+            bridge: NULL_BRIDGE,
             chainId: uint32(block.chainid + 1),
             destination: BytesUtils.addressToBytes32(address(target)),
             payload: abi.encode(100),
