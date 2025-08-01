@@ -44,7 +44,6 @@ contract OrderHub is
     event OrderSettled(bytes32 indexed orderId, Order order);
     event ERC721Received(address operator, address from, uint256 tokenId, bytes data);
     event ERC1155Received(address operator, address from, uint256 id, uint256 value, bytes data);
-    event ERC1155BatchReceived(address operator, address from, uint256[] ids, uint256[] values, bytes data);
 
     error RequestNonceReused();
     error RequestExpired();
@@ -63,6 +62,7 @@ contract OrderHub is
     error OrderNotExpiredYet();
     error OrderCannotBeFilled();
     error OrderExpired();
+    error OperationNotSupported();
 
     constructor(
         address _owner,
@@ -191,15 +191,12 @@ contract OrderHub is
         return IERC1155Receiver.onERC1155Received.selector;
     }
 
-    function onERC1155BatchReceived(
-        address operator,
-        address from,
-        uint256[] calldata ids,
-        uint256[] calldata values,
-        bytes calldata data
-    ) external override returns (bytes4) {
-        emit ERC1155BatchReceived(operator, from, ids, values, data);
-        return IERC1155Receiver.onERC1155BatchReceived.selector;
+    function onERC1155BatchReceived(address, address, uint256[] calldata, uint256[] calldata, bytes calldata)
+        external
+        override
+        returns (bytes4)
+    {
+        revert OperationNotSupported();
     }
 
     function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
