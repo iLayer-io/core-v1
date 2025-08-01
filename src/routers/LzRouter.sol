@@ -48,12 +48,14 @@ contract LzRouter is BaseRouter, OApp {
         }
     }
 
-    function estimateLzBridgingFee(uint32 dstEid, bytes memory payload, bytes calldata options)
+    function estimateLzBridgingFee(uint32 chainId, bytes memory payload, bytes calldata options)
         external
         view
         returns (uint256)
     {
-        MessagingFee memory fee = _quote(dstEid, payload, options, false);
+        uint32 destEid = chainIdToLzChainEid[chainId];
+        if (destEid == 0) revert UnsupportedLzChain();
+        MessagingFee memory fee = _quote(destEid, payload, options, false);
         return fee.nativeFee;
     }
 
