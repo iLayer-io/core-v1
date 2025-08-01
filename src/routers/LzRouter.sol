@@ -30,7 +30,8 @@ contract LzRouter is BaseRouter, OApp {
     }
 
     function send(Message calldata message) external payable virtual override onlyWhitelisted(msg.sender) {
-        if (message.bridge == Bridge.LAYERZERO) {
+        Bridge selectedBridge = Bridge(message.bridge);
+        if (selectedBridge == Bridge.LAYERZERO) {
             uint32 destEid = chainIdToLzChainEid[message.chainId];
             if (destEid == 0) revert UnsupportedLzChain();
 
@@ -40,7 +41,7 @@ contract LzRouter is BaseRouter, OApp {
                 _lzSend(destEid, payload, message.extra, MessagingFee(msg.value, 0), payable(refund));
 
             emit MessageRoutedLz(receipt);
-        } else if (message.bridge == Bridge.NULL) {
+        } else if (selectedBridge == Bridge.NULL) {
             BaseRouter._relay(message);
         } else {
             revert UnsupportedBridgingRoute();

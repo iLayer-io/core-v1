@@ -298,7 +298,7 @@ contract OrderSpokeTest is BaseTest {
         uint256 initialBalance = user0.balance;
         assertEq(address(spoke).balance, 0);
         vm.prank(filler);
-        spoke.fillOrder{value: totalGas}(orderRequest.order, nonce, fillerEncoded, 0, BaseRouter.Bridge.NULL, "");
+        spoke.fillOrder{value: totalGas}(orderRequest.order, nonce, fillerEncoded, 0, NULL_BRIDGE, "");
 
         assertEq(address(spoke).balance, 0);
         assertEq(address(hub).balance, 0);
@@ -333,12 +333,7 @@ contract OrderSpokeTest is BaseTest {
         uint256 totalGas = orderRequest.order.callValue + extraGas;
         vm.deal(filler, totalGas);
         spoke.fillOrder{value: totalGas}(
-            orderRequest.order,
-            nonce,
-            fillerEncoded,
-            orderRequest.order.callValue + extraGas,
-            BaseRouter.Bridge.NULL,
-            ""
+            orderRequest.order, nonce, fillerEncoded, orderRequest.order.callValue + extraGas, NULL_BRIDGE, ""
         );
 
         validateOrderWasFilled(user0, filler, inputAmount, outputAmount);

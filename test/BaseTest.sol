@@ -265,14 +265,14 @@ contract BaseTest is Test {
 
     function fillOrder(Root.Order memory order, uint64 nonce, uint256 maxGas, address filler) public payable {
         bytes32 fillerEncoded = BytesUtils.addressToBytes32(filler);
-        spoke.fillOrder{value: order.callValue}(order, nonce, fillerEncoded, maxGas, BaseRouter.Bridge.NULL, "");
+        spoke.fillOrder{value: order.callValue}(order, nonce, fillerEncoded, maxGas, NULL_BRIDGE, "");
     }
 
     function fillOrderReverts(Root.Order memory order, uint64 nonce, uint256 maxGas, address filler) public payable {
         bytes32 fillerEncoded = BytesUtils.addressToBytes32(filler);
 
         vm.expectRevert();
-        spoke.fillOrder{value: order.callValue}(order, nonce, fillerEncoded, maxGas, BaseRouter.Bridge.NULL, "");
+        spoke.fillOrder{value: order.callValue}(order, nonce, fillerEncoded, maxGas, NULL_BRIDGE, "");
     }
 
     function validateOrderWasFilled(address user, address filler, uint256 inputAmount, uint256 outputAmount)

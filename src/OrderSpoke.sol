@@ -75,7 +75,7 @@ contract OrderSpoke is IRouterCallable, RouterEnabled, Root, ReentrancyGuard {
         uint64 orderNonce,
         bytes32 fundingWallet,
         uint256 maxGas,
-        BaseRouter.Bridge bridgeSelector,
+        uint8 bridgeSelector,
         bytes calldata extra
     ) external payable nonReentrant {
         if (msg.value < order.callValue) revert InsufficientGasValue();
